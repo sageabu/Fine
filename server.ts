@@ -36,6 +36,28 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", app: "Fine Hair", time: new Date().toISOString() });
 });
 
+// Authoritative Master Catalog Reference for Grounding AI
+const AUTHORITATIVE_CATALOG_SUMMARY = `
+OFFICIAL FINE HAIR SERVICES & CURRENT APPROVED PRICES (TZS):
+- No Leave Out (Frontal Signature): TZS 280,000 (3h)
+- Traditional Brazilian Knots: TZS 220,000 (3h)
+- Expert Hair Coloring & Toning: TZS 180,000 (2.5h)
+- Signature Knotless Luxury Braids: TZS 120,000 (2-5h)
+- Precision Sew-In Weaving: TZS 200,000 (2.5h)
+- Hair Spa & Scalp Detox: TZS 95,000 (1.5h)
+- Wig Revamp & Restyle: TZS 85,000 (2h)
+- Glueless Wig Custom Fitting: TZS 150,000 (2h)
+
+SIGNATURE PRODUCTS (TZS):
+- Raw Cambodian Natural Wave Single Donor Bundles: TZS 320,000 - 450,000
+- Raw 4C Afro Coily 5x5 HD Lace Closure: TZS 340,000
+- Bone Straight Vietnamese Virgin Hair: TZS 380,000 - 580,000
+- 13x6 HD Invisible Melt Frontal: TZS 260,000
+- Fine Silk Styling & Melt Band: TZS 45,000
+- Organic Rosemary Scalp Rejuvenation Drops: TZS 35,000
+Location: Mikocheni B, Ussagara Street / Masaki VIP Atelier, Dar es Salaam.
+`;
+
 // AI Endpoint: Hair Consultant & Product Recommendation
 app.post("/api/ai/hair-consultant", async (req, res) => {
   try {
@@ -46,9 +68,9 @@ app.post("/api/ai/hair-consultant", async (req, res) => {
       // Graceful fallback response if API key is not yet set
       return res.json({
         reply:
-          "Fine Hair Advisor: For the Tanzanian climate and seamless elegance, we recommend our 100% Raw Virgin Bone Straight or HD Lace Closures. They resist tropical humidity and maintain a high-gloss finish. Can I help you pick between 22\" and 30\" lengths or book an installation in Masaki?",
-        recommendedProductIds: ["prod-1", "prod-3"],
-        suggestedService: "HD Lace Wig Installation & Melt",
+          "Fine Hair Advisor: For the Tanzanian climate and seamless elegance, we recommend our 100% Raw Virgin Bone Straight or HD Lace Closures (TZS 340,000). They resist tropical humidity and maintain a high-gloss finish. Can I help you pick between 22\" and 30\" lengths or book an installation at Mikocheni B or Masaki?",
+        recommendedProductIds: ["prod-cls-1", "prod-raw-1"],
+        suggestedService: "No Leave Out (Frontal Signature)",
       });
     }
 
@@ -56,7 +78,12 @@ app.post("/api/ai/hair-consultant", async (req, res) => {
 Your persona is warm, knowledgeable, prestigious, and deeply versed in human hair textures (Bone Straight, Raw Cambodian, Deep Wave, HD Lace Frontals, Glueless Wigs, 4C Natural hair blending).
 You speak English with occasional elegant Swahili beauty phrases (like "Karibu Fine Hair", "Pendeza", "Urembo wa asili").
 Always provide tailored advice, care tips (e.g. heat protection, silk bonnet, alcohol-free mousse for Dar es Salaam humidity), and recommend Fine Hair products/services.
-Format your answer clearly with concise luxury tone. Include 1-2 product suggestions or service pairings.`;
+Format your answer clearly with concise luxury tone.
+
+STRICT GROUNDING REQUIREMENT:
+You must strictly recommend services and products from our approved salon catalog:
+${AUTHORITATIVE_CATALOG_SUMMARY}
+Never invent non-existent products, non-existent services, or fictitious prices.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.7-flash",
@@ -67,7 +94,7 @@ Format your answer clearly with concise luxury tone. Include 1-2 product suggest
       ],
       config: {
         systemInstruction,
-        temperature: 0.7,
+        temperature: 0.6,
       },
     });
 
@@ -144,7 +171,7 @@ Raw Input: "${transcript}"`;
   }
 });
 
-// AI Endpoint: Executive Business Intelligence & Inventory Insights
+// AI Endpoint: Executive Business Intelligence & Financial Insights
 app.post("/api/ai/management-insights", async (req, res) => {
   try {
     const { metrics, inventoryAlerts, staffPerformance } = req.body;
@@ -154,29 +181,34 @@ app.post("/api/ai/management-insights", async (req, res) => {
       return res.json({
         insights: [
           {
-            title: "Bundle Installation Opportunity",
+            title: "Deposit Flow & Receivables Health",
+            type: "finance",
+            text: "Collected booking deposits represent high liquidity. Ensure salon POS cashiers collect remaining balances upon appointment completion before client departure.",
+          },
+          {
+            title: "Signature Service Margin",
             type: "opportunity",
-            text: "Raw bone straight 30\" sales are up 35% this week, but installation appointments have a 2-day lag. Launching a 'Buy Bundle + 20% Off Masaki Salon Installation' package can boost service revenue by TSh 1.2M.",
+            text: "No Leave Out installations maintain the highest gross margin. Pairing this with 5x5 HD Lace Closures yields 62% operating contribution.",
           },
           {
             title: "Urgent Stock Re-order Alert",
             type: "inventory",
             text: "13x4 HD Lace Closures are at 3 units remaining. Based on current velocity (4 units/week), restock from Cambodian supplier before Friday.",
           },
-          {
-            title: "Staff Workload & Efficiency",
-            type: "staff",
-            text: "Farida and Zainab have 100% daily reporting and highest customer satisfaction (4.95/5). Consider routing VIP Bridal wig bookings to their schedules.",
-          },
         ],
       });
     }
 
-    const prompt = `You are the Chief Operating Officer and AI Business Intelligence Advisor for "Fine Hair", a high-end Tanzanian hair and beauty company.
-Analyze these live metrics:
+    const prompt = `You are the Chief Operating Officer and Financial Controller for "Fine Hair", a luxury Tanzanian hair and beauty salon house in Dar es Salaam.
+Analyze these live, audited business metrics:
 Metrics: ${JSON.stringify(metrics)}
 Inventory Alerts: ${JSON.stringify(inventoryAlerts)}
 Staff Performance: ${JSON.stringify(staffPerformance)}
+
+STRICT FINANCIAL DISCIPLINE:
+- Ground your analysis strictly in the verified metrics provided.
+- Do NOT invent or hallucinate financial numbers, revenue figures, or customer statistics.
+- Distinguish clearly between Collected Cash Inflow, Gross Booked Contract Value, and Accounts Receivable (pending balances to collect).
 
 Generate 3 high-impact, actionable luxury retail insights.
 Return a JSON array of objects with keys:

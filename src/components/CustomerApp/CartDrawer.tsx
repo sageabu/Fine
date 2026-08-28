@@ -24,8 +24,6 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onClearCart,
   onPlaceOrder,
 }) => {
-  if (!isOpen) return null;
-
   const [customerName, setCustomerName] = useState('Sarah Mkwawa');
   const [customerPhone, setCustomerPhone] = useState('+255 754 892 110');
   const [customerAddress, setCustomerAddress] = useState('Toure Drive, Masaki, Dar es Salaam');
@@ -34,6 +32,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   >('Dar es Salaam Same-Day Express');
   const [paymentMethod, setPaymentMethod] = useState<'M-Pesa' | 'Lipa Namba' | 'Tigo Pesa' | 'Airtel Money' | 'Card' | 'Cash on Delivery'>('M-Pesa');
   const [orderComplete, setOrderComplete] = useState<Order | null>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentRefCode, setPaymentRefCode] = useState('');
 
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const deliveryFee =
@@ -47,26 +47,37 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const handleCheckout = () => {
     if (items.length === 0) return;
 
-    const newOrder: Order = {
-      id: `ord-${Date.now().toString().slice(-4)}`,
-      customerName,
-      customerPhone,
-      customerAddress: deliveryType.includes('Pickup') ? undefined : customerAddress,
-      deliveryType,
-      items: [...items],
-      subtotal,
-      deliveryFee,
-      total,
-      status: 'processing',
-      paymentMethod,
-      paymentStatus: 'paid',
-      orderDate: new Date().toISOString(),
-    };
+    setIsProcessingPayment(true);
+    // Simulate mobile payment prompt & gateway verification
+    setTimeout(() => {
+      const generatedRef = `MP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      setPaymentRefCode(generatedRef);
 
-    onPlaceOrder(newOrder);
-    setOrderComplete(newOrder);
-    onClearCart();
+      const newOrder: Order = {
+        id: `ord-${Date.now().toString().slice(-4)}`,
+        customerName,
+        customerPhone,
+        customerAddress: deliveryType.includes('Pickup') ? undefined : customerAddress,
+        deliveryType,
+        items: [...items],
+        subtotal,
+        deliveryFee,
+        total,
+        status: 'processing',
+        paymentMethod,
+        // Genuine payment state: Cash is pending on delivery; Mobile money requires verified confirmation
+        paymentStatus: paymentMethod === 'Cash on Delivery' ? 'pay_on_pickup' : 'paid',
+        orderDate: new Date().toISOString(),
+      };
+
+      onPlaceOrder(newOrder);
+      setOrderComplete(newOrder);
+      setIsProcessingPayment(false);
+      onClearCart();
+    }, 1200);
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end">
@@ -282,10 +293,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
               <button
                 onClick={handleCheckout}
-                className="w-full bg-[#111111] hover:bg-black text-white py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-md"
+                disabled={isProcessingPayment}
+                className="w-full bg-[#111111] hover:bg-black text-white py-3.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all flex items-center justify-center space-x-2 cursor-pointer shadow-md disabled:opacity-70"
               >
                 <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
-                <span>Place Order & Pay with {paymentMethod}</span>
+                <span>
+                  {isProcessingPayment
+                    ? `Verifying ${paymentMethod} Gateway...`
+                    : `Place Order & Pay with ${paymentMethod}`}
+                </span>
               </button>
             </div>
           </>

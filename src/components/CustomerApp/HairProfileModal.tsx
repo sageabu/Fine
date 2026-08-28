@@ -17,8 +17,6 @@ export const HairProfileModal: React.FC<HairProfileModalProps> = ({
   onSaveProfile,
   staffList,
 }) => {
-  if (!isOpen) return null;
-
   const currentProfile = profile || {
     name: 'Sarah Mkwawa',
     phone: '+255 754 892 110',
@@ -65,6 +63,8 @@ export const HairProfileModal: React.FC<HairProfileModalProps> = ({
 
   const loyaltyTier = currentProfile.loyaltyTier || 'Gold VIP';
   const loyaltyPoints = currentProfile.loyaltyPoints ?? 1450;
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">

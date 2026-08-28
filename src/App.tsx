@@ -46,6 +46,13 @@ import { RoleAccessModal } from './components/RoleAccessModal';
 import { BusinessOSDashboard } from './components/BusinessOS/BusinessOSDashboard';
 import { generateWhatsAppLink } from './utils/formatters';
 import { MessageSquare, Sparkles, ShoppingBag, Heart, ArrowUp, LogIn, UserCheck, Lock, ShieldCheck, ClipboardList } from 'lucide-react';
+import { BOSService, BOSAppointment } from './types/businessOS';
+import {
+  serviceToBOSService,
+  appointmentToBOS,
+  bosToAppointment,
+  calculateAuditedFinancials,
+} from './utils/domainBridge';
 
 export default function App() {
   // Role-Based Access Control State
@@ -53,8 +60,8 @@ export default function App() {
   const [activeStaffId, setActiveStaffId] = useState<string>('staff-1');
   const [isRoleAccessModalOpen, setIsRoleAccessModalOpen] = useState<boolean>(false);
 
-  // Global Perspective & Customer Sub-Tab
-  const [perspective, setPerspective] = useState<EcosystemPerspective | 'business-os'>('business-os');
+  // Global Perspective & Customer Sub-Tab (Default to Customer Storefront for security)
+  const [perspective, setPerspective] = useState<EcosystemPerspective | 'business-os'>('customer');
   const [customerTab, setCustomerTab] = useState<'home' | 'shop' | 'book' | 'learn' | 'profile'>('home');
   const [language, setLanguage] = useState<Language>('en');
 
@@ -103,17 +110,21 @@ export default function App() {
       if (staffId) setActiveStaffId(staffId);
       setPerspective('staff');
     } else if (role === 'management') {
-      setPerspective('management');
+      setPerspective('business-os');
     } else {
       setPerspective('customer');
       setCustomerTab('home');
     }
   };
 
-  // Safe Perspective Selector with Role Verification
+  // Safe Perspective Selector with Strict Role Verification
   const handleSelectPerspective = (targetPerspective: any) => {
     if (targetPerspective === 'business-os' || targetPerspective === 'management') {
-      setPerspective('business-os');
+      if (activeRole === 'management') {
+        setPerspective('business-os');
+      } else {
+        setIsRoleAccessModalOpen(true);
+      }
     } else if (targetPerspective === 'staff') {
       if (activeRole === 'staff' || activeRole === 'management') {
         setPerspective('staff');
@@ -296,51 +307,72 @@ export default function App() {
       })
     );
 
-    // Update financials & create transaction
+    // Update financials & create verified transaction
     const newTxn: FinancialTransaction = {
       id: `txn-${Date.now().toString().slice(-4)}`,
       type: 'revenue',
       categoryTag: 'Product Sales (Hair Pieces & Wigs)',
       amount: newOrder.total,
-      paymentMethod: newOrder.paymentMethod === 'M-Pesa' ? 'M-Pesa' : newOrder.paymentMethod === 'Lipa Namba' ? 'Lipa Namba' : 'Cash',
+      paymentMethod: newOrder.paymentMethod === 'M-Pesa' ? 'M-Pesa' : newOrder.paymentMethod === 'Lipa Namba' ? 'Lipa Namba' : newOrder.paymentMethod === 'Card' ? 'Bank' : 'Cash',
       reference: `ORD-${newOrder.id}`,
       partyName: newOrder.customerName,
       date: new Date().toISOString(),
-      status: 'completed',
+      status: newOrder.paymentStatus === 'paid' ? 'completed' : 'pending',
     };
-    setTransactions((prev) => [newTxn, ...prev]);
+    const updatedTransactions = [newTxn, ...transactions];
+    setTransactions(updatedTransactions);
 
-    setFinancials((prev) => ({
-      ...prev,
-      totalRevenue: prev.totalRevenue + newOrder.total,
-      productSalesRevenue: prev.productSalesRevenue + newOrder.total,
-      netOperatingProfit: prev.netOperatingProfit + Math.round(newOrder.total * 0.45),
-    }));
+    const updatedOrders = [newOrder, ...orders];
+    const audited = calculateAuditedFinancials(financials, appointments, updatedOrders, updatedTransactions);
+    setFinancials(audited);
   };
 
-  // Appointment operations
+  // Appointment operations with double-entry reconciliation
   const handleConfirmAppointment = (newAppointment: Appointment) => {
-    setAppointments((prev) => [newAppointment, ...prev]);
+    const updatedAppointments = [newAppointment, ...appointments];
+    setAppointments(updatedAppointments);
 
     const depositTxn: FinancialTransaction = {
       id: `txn-${Date.now().toString().slice(-4)}`,
       type: 'revenue',
       categoryTag: 'FineTouch Salon Booking Deposit',
       amount: newAppointment.depositPaid,
-      paymentMethod: 'M-Pesa',
+      paymentMethod: (newAppointment.paymentMethod as any) || 'M-Pesa',
       reference: `APT-${newAppointment.id}`,
       partyName: newAppointment.customerName,
       date: new Date().toISOString(),
-      status: 'completed',
+      status: newAppointment.paymentMethod === 'Cash at Salon' ? 'pending' : 'completed',
     };
-    setTransactions((prev) => [depositTxn, ...prev]);
+    const updatedTransactions = [depositTxn, ...transactions];
+    setTransactions(updatedTransactions);
 
-    setFinancials((prev) => ({
-      ...prev,
-      totalRevenue: prev.totalRevenue + newAppointment.depositPaid,
-      serviceRevenue: prev.serviceRevenue + newAppointment.totalPrice,
-      netOperatingProfit: prev.netOperatingProfit + Math.round(newAppointment.depositPaid * 0.7),
-    }));
+    const audited = calculateAuditedFinancials(financials, updatedAppointments, orders, updatedTransactions);
+    setFinancials(audited);
+  };
+
+  // Synchronize price approvals from Business OS directly into customer booking catalogue
+  const handleUpdateBOSServices = (updatedBOSServices: BOSService[]) => {
+    setServices((prev) =>
+      prev.map((s) => {
+        const matchingBOS = updatedBOSServices.find(
+          (b) => b.id === s.id || b.name.toLowerCase() === s.name.toLowerCase()
+        );
+        if (matchingBOS) {
+          return {
+            ...s,
+            price: matchingBOS.currentPrice,
+            description: matchingBOS.description,
+            isActive: matchingBOS.status === 'Active',
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  const handleAddBOSAppointment = (newBOS: BOSAppointment) => {
+    const storefrontApt = bosToAppointment(newBOS);
+    handleConfirmAppointment(storefrontApt);
   };
 
   const handleUpdateAppointmentStatus = (appointmentId: string, status: Appointment['status']) => {
@@ -368,7 +400,16 @@ export default function App() {
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   if (perspective === 'business-os') {
-    return <BusinessOSDashboard onOpenStorefront={() => setPerspective('customer')} />;
+    return (
+      <BusinessOSDashboard
+        onOpenStorefront={() => setPerspective('customer')}
+        externalServices={services.map(serviceToBOSService)}
+        onUpdateServices={handleUpdateBOSServices}
+        externalAppointments={appointments.map(appointmentToBOS)}
+        onAddAppointment={handleAddBOSAppointment}
+        initialRole="Executive"
+      />
+    );
   }
 
   return (

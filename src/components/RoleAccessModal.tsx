@@ -80,7 +80,7 @@ export const RoleAccessModal: React.FC<RoleAccessModalProps> = ({
     }
 
     if (selectedTargetRole === 'staff') {
-      if (pinCode.trim() === '2024' || pinCode.trim() === 'staff' || pinCode.trim() === '') {
+      if (pinCode.trim() === '2024' || pinCode.trim() === 'staff') {
         const staff = staffList.find((s) => s.id === selectedStaffId) || staffList?.[0];
         setSuccessMessage(`Staff Workstation unlocked for ${staff?.name || 'Staff'}.`);
         setTimeout(() => {

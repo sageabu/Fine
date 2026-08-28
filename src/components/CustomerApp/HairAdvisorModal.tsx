@@ -28,8 +28,6 @@ export const HairAdvisorModal: React.FC<HairAdvisorModalProps> = ({
   onSelectProduct,
   onSelectService,
 }) => {
-  if (!isOpen) return null;
-
   const [inputPrompt, setInputPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -90,6 +88,8 @@ export const HairAdvisorModal: React.FC<HairAdvisorModalProps> = ({
       setLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">

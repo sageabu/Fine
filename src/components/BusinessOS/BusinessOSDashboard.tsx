@@ -46,19 +46,48 @@ import { CustomerAIModal, StaffAIModal, ApprovalReviewModal } from './Modals/Cus
 
 interface BusinessOSDashboardProps {
   onOpenStorefront: () => void;
+  externalServices?: BOSService[];
+  onUpdateServices?: (services: BOSService[]) => void;
+  externalAppointments?: BOSAppointment[];
+  onAddAppointment?: (apt: BOSAppointment) => void;
+  initialRole?: BusinessOSRole;
 }
 
-export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({ onOpenStorefront }) => {
+export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
+  onOpenStorefront,
+  externalServices,
+  onUpdateServices,
+  externalAppointments,
+  onAddAppointment,
+  initialRole = 'Executive',
+}) => {
   // Navigation & Role State
   const [activePage, setActivePage] = useState<BusinessOSPage>('overview');
-  const [activeRole, setActiveRole] = useState<BusinessOSRole>('Executive');
+  const [activeRole, setActiveRole] = useState<BusinessOSRole>(initialRole);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Core Datasets
-  const [appointments, setAppointments] = useState<BOSAppointment[]>(INITIAL_BOS_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<BOSAppointment[]>(
+    externalAppointments && externalAppointments.length > 0 ? externalAppointments : INITIAL_BOS_APPOINTMENTS
+  );
   const [staff, setStaff] = useState<BOSStaffRecord[]>(INITIAL_BOS_STAFF);
   const [customers, setCustomers] = useState<BOSCustomer[]>(INITIAL_BOS_CUSTOMERS);
-  const [services, setServices] = useState<BOSService[]>(INITIAL_BOS_SERVICES);
+  const [services, setServices] = useState<BOSService[]>(
+    externalServices && externalServices.length > 0 ? externalServices : INITIAL_BOS_SERVICES
+  );
+
+  React.useEffect(() => {
+    if (externalServices && externalServices.length > 0) {
+      setServices(externalServices);
+    }
+  }, [externalServices]);
+
+  React.useEffect(() => {
+    if (externalAppointments && externalAppointments.length > 0) {
+      setAppointments(externalAppointments);
+    }
+  }, [externalAppointments]);
+
   const [inventory, setInventory] = useState<BOSInventoryProduct[]>(INITIAL_BOS_INVENTORY);
   const [posts, setPosts] = useState<BOSMarketingPost[]>(INITIAL_BOS_MARKETING_POSTS);
   const [approvals, setApprovals] = useState<BOSApprovalItem[]>(INITIAL_BOS_APPROVALS);
@@ -87,6 +116,9 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({ onOpen
   // Handlers for Add/Update
   const handleCreateAppointment = (newApt: BOSAppointment) => {
     setAppointments((prev) => [newApt, ...prev]);
+    if (onAddAppointment) {
+      onAddAppointment(newApt);
+    }
   };
 
   const handleCreateCustomer = (newCust: BOSCustomer) => {
@@ -106,11 +138,13 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({ onOpen
       prev.map((a) => (a.id === item.id ? { ...a, status: 'Approved' as const } : a))
     );
 
-    // If price change, apply update to Service Master
+    // If price change, apply update to Service Master and notify parent Single Source of Truth
     if (item.type === 'price_change' && item.serviceId && item.proposedValue) {
-      setServices((prev) =>
-        prev.map((s) => (s.id === item.serviceId ? { ...s, currentPrice: item.proposedValue! } : s))
-      );
+      const updated = services.map((s) => (s.id === item.serviceId ? { ...s, currentPrice: item.proposedValue! } : s));
+      setServices(updated);
+      if (onUpdateServices) {
+        onUpdateServices(updated);
+      }
     }
   };
 
