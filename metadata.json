@@ -1,0 +1,7 @@
+{
+  "name": "Fine Hair",
+  "description": "Fine Hair Digital Business Platform (Business OS): Executive overview, appointment control, staff performance, customer CRM, centralized pricing, commerce, and marketing hub for Fine Hair Tanzania.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

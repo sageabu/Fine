@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-editorial: "Cormorant Garamond", Georgia, serif;
+    --font-modern: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    
+    /* Fine Hair Business OS Design Tokens */
+    --bos-ink: #141214;
+    --bos-muted: #716a70;
+    --bos-bg: #f6f3f4;
+    --bos-panel: #ffffff;
+    --bos-soft: #efe7eb;
+    --bos-accent: #9b627d;
+    --bos-accent2: #cda6b8;
+    --bos-gold: #ad8d58;
+    --bos-line: #e3dce0;
+    --bos-ok: #2e7d5a;
+    --bos-warn: #a46d22;
+    --bos-bad: #a94646;
+  }
+
+  body {
+    font-family: var(--font-modern);
+    color: #141214;
+    background-color: #f6f3f4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: var(--font-editorial);
+  }
+}
+
+/* Business OS Palette Classes */
+.bg-bos-bg { background-color: var(--bos-bg); }
+.bg-bos-panel { background-color: var(--bos-panel); }
+.bg-bos-soft { background-color: var(--bos-soft); }
+.text-bos-ink { color: var(--bos-ink); }
+.text-bos-muted { color: var(--bos-muted); }
+.text-bos-accent { color: var(--bos-accent); }
+.text-bos-gold { color: var(--bos-gold); }
+.border-bos-line { border-color: var(--bos-line); }
+
+/* Custom Fine Hair Luxury Utilities */
+.editorial-title {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+.gold-accent {
+  color: #B89758;
+}
+
+.gold-bg-subtle {
+  background-color: #F7F3EB;
+}
+
+.gold-border-subtle {
+  border-color: #E8DECC;
+}
+
+/* Hide scrollbars for slick mobile horizontal sliders */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
