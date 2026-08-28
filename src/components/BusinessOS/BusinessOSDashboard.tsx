@@ -21,6 +21,7 @@ import {
   INITIAL_BOS_APPROVALS,
   INITIAL_BOS_COMPLAINTS,
 } from '../../data/businessOSMockData';
+import { api, UserAccount, setApiActiveUser } from '../../utils/apiClient';
 
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -43,6 +44,7 @@ import { ProposePriceModal } from './Modals/ProposePriceModal';
 import { ScheduleSocialModal } from './Modals/ScheduleSocialModal';
 import { AICampaignModal } from './Modals/AICampaignModal';
 import { CustomerAIModal, StaffAIModal, ApprovalReviewModal } from './Modals/CustomerAIModal';
+import { AuthUserModal } from './Modals/AuthUserModal';
 
 interface BusinessOSDashboardProps {
   onOpenStorefront: () => void;
@@ -66,6 +68,10 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
   const [activeRole, setActiveRole] = useState<BusinessOSRole>(initialRole);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Authenticated User Session
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   // Core Datasets
   const [appointments, setAppointments] = useState<BOSAppointment[]>(
     externalAppointments && externalAppointments.length > 0 ? externalAppointments : INITIAL_BOS_APPOINTMENTS
@@ -75,6 +81,81 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
   const [services, setServices] = useState<BOSService[]>(
     externalServices && externalServices.length > 0 ? externalServices : INITIAL_BOS_SERVICES
   );
+  const [inventory, setInventory] = useState<BOSInventoryProduct[]>(INITIAL_BOS_INVENTORY);
+  const [posts, setPosts] = useState<BOSMarketingPost[]>(INITIAL_BOS_MARKETING_POSTS);
+  const [approvals, setApprovals] = useState<BOSApprovalItem[]>(INITIAL_BOS_APPROVALS);
+  const [complaints, setComplaints] = useState<BOSComplaint[]>(INITIAL_BOS_COMPLAINTS);
+
+  // Initial Sync from Centralized Backend Database
+  const refreshFromDatabase = async () => {
+    try {
+      const [dbUsers, dbServices, dbAppointments, dbApprovals, dbMarketing] = await Promise.allSettled([
+        api.getUsers(),
+        api.getServices(),
+        api.getAppointments(),
+        api.getApprovals(),
+        api.getMarketingPosts(),
+      ]);
+
+      if (dbUsers.status === 'fulfilled' && dbUsers.value.length > 0) {
+        if (!currentUser) {
+          const defaultUser = dbUsers.value[0];
+          setCurrentUser(defaultUser);
+          setApiActiveUser(defaultUser.id);
+          setActiveRole(defaultUser.role as BusinessOSRole);
+        }
+      }
+
+      if (dbServices.status === 'fulfilled' && dbServices.value.length > 0) {
+        const mappedServices: BOSService[] = dbServices.value.map((s) => ({
+          id: s.id,
+          name: s.name,
+          category: s.category,
+          currentPrice: s.currentPrice,
+          duration: s.durationLabel,
+          status: s.status as any,
+          description: s.description,
+          swahiliDescription: s.swahiliName,
+        }));
+        setServices(mappedServices);
+        if (onUpdateServices) onUpdateServices(mappedServices);
+      }
+
+      if (dbAppointments.status === 'fulfilled' && dbAppointments.value.length > 0) {
+        setAppointments(dbAppointments.value as any);
+      }
+
+      if (dbApprovals.status === 'fulfilled' && dbApprovals.value.length > 0) {
+        const mappedApprovals: BOSApprovalItem[] = dbApprovals.value.map((a) => ({
+          id: a.id,
+          title: a.title,
+          type: a.type as any,
+          requestedBy: a.requestedByName,
+          requestedByUserId: a.requestedByUserId,
+          details: a.details,
+          serviceId: a.serviceId,
+          currentValue: a.currentValue as any,
+          proposedValue: a.proposedValue as any,
+          effectiveDate: a.effectiveDate,
+          reason: a.reason,
+          amount: a.amount,
+          date: a.date,
+          status: a.status as any,
+        } as any));
+        setApprovals(mappedApprovals);
+      }
+
+      if (dbMarketing.status === 'fulfilled' && dbMarketing.value.length > 0) {
+        setPosts(dbMarketing.value as any);
+      }
+    } catch (err) {
+      console.warn('Initial sync notice: using cached state', err);
+    }
+  };
+
+  React.useEffect(() => {
+    refreshFromDatabase();
+  }, []);
 
   React.useEffect(() => {
     if (externalServices && externalServices.length > 0) {
@@ -87,11 +168,6 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
       setAppointments(externalAppointments);
     }
   }, [externalAppointments]);
-
-  const [inventory, setInventory] = useState<BOSInventoryProduct[]>(INITIAL_BOS_INVENTORY);
-  const [posts, setPosts] = useState<BOSMarketingPost[]>(INITIAL_BOS_MARKETING_POSTS);
-  const [approvals, setApprovals] = useState<BOSApprovalItem[]>(INITIAL_BOS_APPROVALS);
-  const [complaints, setComplaints] = useState<BOSComplaint[]>(INITIAL_BOS_COMPLAINTS);
 
   // Modal Control States
   const [isQuickActionOpen, setIsQuickActionOpen] = useState(false);
@@ -113,11 +189,25 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
 
   const [selectedApprovalItem, setSelectedApprovalItem] = useState<BOSApprovalItem | null>(null);
 
-  // Handlers for Add/Update
-  const handleCreateAppointment = (newApt: BOSAppointment) => {
-    setAppointments((prev) => [newApt, ...prev]);
-    if (onAddAppointment) {
-      onAddAppointment(newApt);
+  // Handlers for Add/Update connected to API layer
+  const handleCreateAppointment = async (newApt: BOSAppointment) => {
+    try {
+      const res = await api.createAppointment({
+        customerName: newApt.clientName,
+        customerPhone: newApt.clientPhone,
+        serviceId: (newApt as any).serviceId || 'srv-1',
+        staffId: (newApt as any).staffId || 'staff-1',
+        date: newApt.date,
+        time: newApt.time,
+        paymentMethod: 'M-Pesa',
+        depositPaid: newApt.deposit || 0,
+      });
+      setAppointments((prev) => [res.appointment as any, ...prev]);
+      if (onAddAppointment) {
+        onAddAppointment(res.appointment as any);
+      }
+    } catch (err: any) {
+      alert(`Booking collision or scheduling error: ${err.message}`);
     }
   };
 
@@ -125,33 +215,57 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
     setCustomers((prev) => [newCust, ...prev]);
   };
 
-  const handleProposePrice = (proposal: BOSApprovalItem) => {
-    setApprovals((prev) => [proposal, ...prev]);
-  };
-
-  const handleSchedulePost = (post: BOSMarketingPost) => {
-    setPosts((prev) => [post, ...prev]);
-  };
-
-  const handleApproveItem = (item: BOSApprovalItem) => {
-    setApprovals((prev) =>
-      prev.map((a) => (a.id === item.id ? { ...a, status: 'Approved' as const } : a))
-    );
-
-    // If price change, apply update to Service Master and notify parent Single Source of Truth
-    if (item.type === 'price_change' && item.serviceId && item.proposedValue) {
-      const updated = services.map((s) => (s.id === item.serviceId ? { ...s, currentPrice: item.proposedValue! } : s));
-      setServices(updated);
-      if (onUpdateServices) {
-        onUpdateServices(updated);
+  const handleProposePrice = async (proposal: BOSApprovalItem) => {
+    if (proposal.serviceId && proposal.proposedValue) {
+      try {
+        const res = await api.proposePrice(
+          proposal.serviceId,
+          Number(proposal.proposedValue),
+          proposal.reason || 'Price change proposal'
+        );
+        setApprovals((prev) => [res.approval as any, ...prev]);
+      } catch (err: any) {
+        alert(`Price proposal submission error: ${err.message}`);
       }
+    } else {
+      setApprovals((prev) => [proposal, ...prev]);
     }
   };
 
-  const handleRejectItem = (item: BOSApprovalItem) => {
-    setApprovals((prev) =>
-      prev.map((a) => (a.id === item.id ? { ...a, status: 'Rejected' as const } : a))
-    );
+  const handleSchedulePost = async (post: BOSMarketingPost) => {
+    try {
+      const res = await api.scheduleMarketingPost({
+        title: post.title,
+        series: post.series,
+        platforms: post.platforms,
+        publishDate: post.publishDate,
+        publishTime: post.publishTime,
+        notes: post.notes,
+        hairTextureTag: '4C Coily & Protective Styling',
+      });
+      setPosts((prev) => [res.post as any, ...prev]);
+    } catch (err: any) {
+      setPosts((prev) => [post, ...prev]);
+    }
+  };
+
+  const handleApproveItem = async (item: BOSApprovalItem) => {
+    try {
+      await api.decideApproval(item.id, 'Approved');
+      // Refresh state from database
+      await refreshFromDatabase();
+    } catch (err: any) {
+      alert(`Governance Failure: ${err.message}`);
+    }
+  };
+
+  const handleRejectItem = async (item: BOSApprovalItem) => {
+    try {
+      await api.decideApproval(item.id, 'Rejected', 'Rejected by executive reviewer');
+      await refreshFromDatabase();
+    } catch (err: any) {
+      alert(`Rejection error: ${err.message}`);
+    }
   };
 
   const pendingApprovalsCount = approvals.filter((a) => a.status === 'Pending').length;
@@ -168,6 +282,8 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
         isOpenMobile={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         pendingApprovalsCount={pendingApprovalsCount}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -183,6 +299,8 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
             onOpenQuickAction={() => setIsQuickActionOpen(true)}
             onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             onOpenStorefront={onOpenStorefront}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
           />
 
           {/* Page Routing */}
@@ -244,6 +362,7 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
               posts={posts}
               onSchedulePost={() => setIsScheduleSocialOpen(true)}
               onNavigate={setActivePage}
+              onPostUpdated={refreshFromDatabase}
             />
           )}
 
@@ -259,12 +378,25 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
               approvals={approvals}
               complaints={complaints}
               onReviewApproval={(item) => setSelectedApprovalItem(item)}
+              currentUser={currentUser || undefined}
             />
           )}
         </main>
       </div>
 
       {/* MODALS */}
+      {/* 0. Authenticated User Login Modal */}
+      <AuthUserModal
+        isOpen={isAuthModalOpen}
+        currentUser={currentUser}
+        onClose={() => setIsAuthModalOpen(false)}
+        onUserAuthenticated={(user) => {
+          setCurrentUser(user);
+          setActiveRole(user.role as BusinessOSRole);
+          setApiActiveUser(user.id);
+        }}
+      />
+
       {/* 1. Quick Action Modal */}
       <QuickActionModal
         isOpen={isQuickActionOpen}
@@ -295,10 +427,15 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
           isOpen={true}
           appointment={selectedAppointment}
           onClose={() => setSelectedAppointment(null)}
-          onUpdateStatus={(aptId, newStatus) => {
-            setAppointments((prev) =>
-              prev.map((a) => (a.id === aptId ? { ...a, status: newStatus } : a))
-            );
+          onUpdateStatus={async (aptId, newStatus) => {
+            try {
+              await api.updateAppointmentStatus(aptId, newStatus);
+              await refreshFromDatabase();
+            } catch (err: any) {
+              setAppointments((prev) =>
+                prev.map((a) => (a.id === aptId ? { ...a, status: newStatus } : a))
+              );
+            }
           }}
         />
       )}
@@ -346,7 +483,6 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
         isOpen={isAICampaignOpen}
         onClose={() => setIsAICampaignOpen(false)}
         onConfirm={(msg) => {
-          // Add approval or post
           const approval: BOSApprovalItem = {
             id: `appr-camp-${Date.now()}`,
             title: 'AI Rebooking Campaign Broadcast',
@@ -373,13 +509,14 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
         onClose={() => setIsStaffAIOpen(false)}
       />
 
-      {/* 11. Approval Review Modal */}
+      {/* 11. Approval Review Modal with Segregation of Duties */}
       <ApprovalReviewModal
         item={selectedApprovalItem}
         isOpen={!!selectedApprovalItem}
         onClose={() => setSelectedApprovalItem(null)}
         onApprove={handleApproveItem}
         onReject={handleRejectItem}
+        currentUser={currentUser || undefined}
       />
     </div>
   );

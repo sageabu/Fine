@@ -10,6 +10,8 @@ interface TopbarProps {
   onOpenQuickAction: () => void;
   onToggleMobileMenu: () => void;
   onOpenStorefront: () => void;
+  currentUser?: { id: string; name: string; role: string; avatar: string } | null;
+  onOpenAuthModal?: () => void;
 }
 
 const PAGE_TITLES: Record<BusinessOSPage, { title: string; subtitle: string }> = {
@@ -59,6 +61,8 @@ export const Topbar: React.FC<TopbarProps> = ({
   onOpenQuickAction,
   onToggleMobileMenu,
   onOpenStorefront,
+  currentUser,
+  onOpenAuthModal,
 }) => {
   const meta = PAGE_TITLES[activePage] || PAGE_TITLES.overview;
 
@@ -80,9 +84,13 @@ export const Topbar: React.FC<TopbarProps> = ({
               Fine Hair Digital Business Platform
             </span>
             <span className="hidden sm:inline-block w-1.5 h-1.5 rounded-full bg-[#ad8d58]" />
-            <span className="hidden sm:inline-block text-[10px] text-[#716a70] uppercase font-semibold">
-              Role: {activeRole}
-            </span>
+            <button
+              onClick={onOpenAuthModal}
+              className="hidden sm:inline-flex items-center gap-1.5 text-[10px] text-[#716a70] uppercase font-semibold hover:text-[#141214] cursor-pointer"
+            >
+              <span>User: <b>{currentUser?.name || 'Amina K.'}</b> ({currentUser?.role || activeRole})</span>
+              <span className="text-[#ad8d58] lowercase underline font-normal">switch</span>
+            </button>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl font-semibold text-[#141214] mt-0.5 tracking-tight">
             {meta.title}

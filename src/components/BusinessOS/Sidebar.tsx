@@ -1,5 +1,6 @@
 import React from 'react';
 import { BusinessOSPage, BusinessOSRole } from '../../types/businessOS';
+import { UserAccount } from '../../utils/apiClient';
 import {
   LayoutDashboard,
   Calendar,
@@ -12,28 +13,33 @@ import {
   FileCheck2,
   ExternalLink,
   Store,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 
 interface SidebarProps {
   activePage: BusinessOSPage;
   onSelectPage: (page: BusinessOSPage) => void;
   activeRole: BusinessOSRole;
-  onChangeRole: (role: BusinessOSRole) => void;
+  onChangeRole?: (role: BusinessOSRole) => void;
   onOpenStorefront: () => void;
   isOpenMobile?: boolean;
   onCloseMobile?: () => void;
   pendingApprovalsCount?: number;
+  currentUser?: UserAccount | null;
+  onOpenAuthModal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activePage,
   onSelectPage,
   activeRole,
-  onChangeRole,
   onOpenStorefront,
   isOpenMobile = false,
   onCloseMobile,
   pendingApprovalsCount = 3,
+  currentUser,
+  onOpenAuthModal,
 }) => {
   const navItems: { id: BusinessOSPage; label: string; icon: any; badge?: number }[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -64,33 +70,56 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         <div>
           {/* Logo & Brand */}
-          <div className="px-2 mb-6">
+          <div className="px-2 mb-4">
             <div className="font-serif text-2xl tracking-wider text-white font-medium">FINE HAIR</div>
             <div className="text-[10px] text-[#bdb5ba] tracking-[0.2em] uppercase font-semibold mt-0.5">
               Business OS
             </div>
           </div>
 
-          {/* Role Switcher */}
-          <div className="bg-[#262226] border border-[#3d353b] rounded-xl p-3 mb-6">
-            <label className="text-[10px] uppercase tracking-wider text-[#aaa1a8] block mb-1.5 font-bold">
-              VIEW AS
-            </label>
-            <select
-              value={activeRole}
-              onChange={(e) => onChangeRole(e.target.value as BusinessOSRole)}
-              className="w-full bg-[#332d32] text-white text-xs rounded-lg px-2.5 py-2 border-0 focus:ring-1 focus:ring-[#9b627d] cursor-pointer"
-            >
-              <option value="Executive">Executive</option>
-              <option value="Manager">Manager</option>
-              <option value="Reception">Reception</option>
-              <option value="Staff">Staff</option>
-              <option value="Marketing">Marketing</option>
-            </select>
+          {/* Authenticated User & Governance Profile */}
+          <div className="bg-[#241f23] border border-[#3d333b] rounded-xl p-3 mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] uppercase tracking-wider text-[#ad8d58] font-bold flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" />
+                <span>Active Profile</span>
+              </span>
+              <button
+                type="button"
+                onClick={onOpenAuthModal}
+                className="text-[10px] text-[#ad8d58] hover:text-white font-semibold cursor-pointer underline flex items-center gap-1"
+              >
+                <Lock className="w-2.5 h-2.5" />
+                <span>Switch / Login</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <img
+                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200'}
+                alt={currentUser?.name || 'User'}
+                className="w-9 h-9 rounded-full object-cover border border-[#4d404b] shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold text-white truncate">
+                  {currentUser?.name || 'Amina K. (CFO)'}
+                </div>
+                <div className="text-[10px] text-[#ad8d58] font-medium tracking-wide uppercase">
+                  {currentUser?.role || activeRole}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-2.5 pt-2 border-t border-[#362d34] flex items-center justify-between text-[10px] text-[#8e858b]">
+              <span>Permissions:</span>
+              <span className="font-mono text-white font-semibold">
+                {currentUser?.permissions.length || 7} Active
+              </span>
+            </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="space-y-1.5">
+          <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activePage === item.id;
@@ -101,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onSelectPage(item.id);
                     if (onCloseMobile) onCloseMobile();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[#3a3036] text-white shadow-xs'
                       : 'text-[#c9c1c6] hover:text-white hover:bg-[#262226]'

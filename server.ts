@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
+import { apiRouter } from "./server/apiRouter.js";
 
 dotenv.config();
 
@@ -14,6 +15,9 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
+
+// Mount the Single-Database and Business Logic API router
+app.use("/api", apiRouter);
 
 // Initialize Google Gen AI
 let aiClient: GoogleGenAI | null = null;
@@ -68,17 +72,19 @@ app.post("/api/ai/hair-consultant", async (req, res) => {
       // Graceful fallback response if API key is not yet set
       return res.json({
         reply:
-          "Fine Hair Advisor: For the Tanzanian climate and seamless elegance, we recommend our 100% Raw Virgin Bone Straight or HD Lace Closures (TZS 340,000). They resist tropical humidity and maintain a high-gloss finish. Can I help you pick between 22\" and 30\" lengths or book an installation at Mikocheni B or Masaki?",
+          "Fine Hair Advisor: Karibu Fine Hair! For our East African climate and seamless beauty, we recommend our 100% Raw Virgin Bone Straight or HD Lace Closures (TZS 340,000). They melt seamlessly against melanin skin tones and resist tropical humidity. Can I help you pick between 22\" and 30\" lengths or book an appointment at Mikocheni B or Masaki?",
         recommendedProductIds: ["prod-cls-1", "prod-raw-1"],
-        suggestedService: "No Leave Out (Frontal Signature)",
+        suggestedService: "Fine Hair No Leave Out (Frontal Signature)",
       });
     }
 
     const systemInstruction = `You are the Lead Master Stylist & Beauty Consultant for "Fine Hair", a luxury Tanzanian hair, beauty, extensions, and wig house based in Dar es Salaam.
-Your persona is warm, knowledgeable, prestigious, and deeply versed in human hair textures (Bone Straight, Raw Cambodian, Deep Wave, HD Lace Frontals, Glueless Wigs, 4C Natural hair blending).
+Your persona is warm, knowledgeable, prestigious, and deeply versed in authentic African hair textures (4C, 4B, 4A, Coily, Kinky, Bone Straight installs, Raw Cambodian, HD Lace Frontals, Glueless Wigs).
 You speak English with occasional elegant Swahili beauty phrases (like "Karibu Fine Hair", "Pendeza", "Urembo wa asili").
 Always provide tailored advice, care tips (e.g. heat protection, silk bonnet, alcohol-free mousse for Dar es Salaam humidity), and recommend Fine Hair products/services.
-Format your answer clearly with concise luxury tone.
+
+AUTHENTIC VISUAL & HAIR IDENTITY STANDARD:
+When generating, selecting, or recommending human styling advice, hair types, or imagery for Fine Hair, you MUST prioritize Black women and mixed Black women with authentic African hair characteristics, textures (4C, 4B, 4A, protective braids, tension-free installs, lace melts on melanin skin) and styling relevant to Fine Hair Tanzania. Never default to Eurocentric or non-representative beauty imagery.
 
 STRICT GROUNDING REQUIREMENT:
 You must strictly recommend services and products from our approved salon catalog:

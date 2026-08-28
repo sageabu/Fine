@@ -6,17 +6,42 @@ interface ReportsApprovalsPageProps {
   approvals: BOSApprovalItem[];
   complaints: BOSComplaint[];
   onReviewApproval: (item: BOSApprovalItem) => void;
+  currentUser?: { id: string; name: string; role: string };
 }
 
 export const ReportsApprovalsPage: React.FC<ReportsApprovalsPageProps> = ({
   approvals,
   complaints,
   onReviewApproval,
+  currentUser,
 }) => {
   const pendingApprovals = approvals.filter((a) => a.status === 'Pending');
 
   return (
     <div className="space-y-6">
+      {/* Segregation of Duties Banner */}
+      <div className="p-4 bg-white border border-[#e3dce0] rounded-2xl shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[#efe7eb] text-[#9b627d] flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-[#141214] flex items-center gap-2">
+              <span>Dual-Control Governance & Segregation of Duties Enforced</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#eef8f3] text-[#2e7d5a]">
+                Active
+              </span>
+            </div>
+            <p className="text-xs text-[#716a70]">
+              Logged in as: <b>{currentUser?.name || 'Authorized User'}</b> ({currentUser?.role || 'Staff'}). An employee cannot approve their own submissions; Executive dual-sign-off is mandatory.
+            </p>
+          </div>
+        </div>
+        <div className="text-[11px] text-[#9b627d] font-semibold bg-[#fbf9fa] px-3 py-1.5 rounded-xl border border-[#e3dce0]">
+          {currentUser?.role === 'Executive' ? '✓ Executive Sign-off Authority Granted' : '🔒 Read/Review Only Mode'}
+        </div>
+      </div>
+
       {/* Grid: Approvals Queue & End-of-Day Submissions */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Approvals Queue */}
@@ -45,36 +70,49 @@ export const ReportsApprovalsPage: React.FC<ReportsApprovalsPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e3dce0] text-xs">
-                {approvals.map((appr) => (
-                  <tr key={appr.id} className="hover:bg-[#fbf9fa] transition-colors">
-                    <td className="py-3.5 px-3 font-semibold text-[#141214]">{appr.title}</td>
-                    <td className="py-3.5 px-3 text-[#716a70]">{appr.requestedBy}</td>
-                    <td className="py-3.5 px-3 text-[#716a70] max-w-xs truncate">{appr.details}</td>
-                    <td className="py-3.5 px-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        appr.status === 'Approved'
-                          ? 'bg-[#eef8f3] text-[#2e7d5a]'
-                          : appr.status === 'Rejected'
-                          ? 'bg-[#fbefef] text-[#a94646]'
-                          : 'bg-[#fcf6ea] text-[#a46d22]'
-                      }`}>
-                        {appr.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-3 text-right">
-                      {appr.status === 'Pending' ? (
-                        <button
-                          onClick={() => onReviewApproval(appr)}
-                          className="px-3 py-1.5 rounded-lg border border-[#ad8d58] text-[#ad8d58] hover:bg-[#fcf9f2] text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                          Review
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-[#716a70] italic">Decided</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {approvals.map((appr) => {
+                  const isSelf = currentUser && (
+                    (appr as any).requestedByUserId === currentUser.id ||
+                    appr.requestedBy.toLowerCase().includes(currentUser.name.split(' ')[0].toLowerCase())
+                  );
+                  return (
+                    <tr key={appr.id} className="hover:bg-[#fbf9fa] transition-colors">
+                      <td className="py-3.5 px-3 font-semibold text-[#141214]">{appr.title}</td>
+                      <td className="py-3.5 px-3 text-[#716a70]">
+                        <span>{appr.requestedBy}</span>
+                        {isSelf && (
+                          <span className="block text-[10px] font-bold text-[#a94646]">
+                            (Self-Submitted)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 text-[#716a70] max-w-xs truncate">{appr.details}</td>
+                      <td className="py-3.5 px-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          appr.status === 'Approved'
+                            ? 'bg-[#eef8f3] text-[#2e7d5a]'
+                            : appr.status === 'Rejected'
+                            ? 'bg-[#fbefef] text-[#a94646]'
+                            : 'bg-[#fcf6ea] text-[#a46d22]'
+                        }`}>
+                          {appr.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        {appr.status === 'Pending' ? (
+                          <button
+                            onClick={() => onReviewApproval(appr)}
+                            className="px-3 py-1.5 rounded-lg border border-[#ad8d58] text-[#ad8d58] hover:bg-[#fcf9f2] text-xs font-semibold transition-colors cursor-pointer"
+                          >
+                            Review
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-[#716a70] italic">Decided</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

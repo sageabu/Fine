@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BOSMarketingPost } from '../../../types/businessOS';
-import { X, Send, Calendar, Clock, CheckSquare } from 'lucide-react';
+import { X, Send, Calendar, Clock, CheckSquare, ShieldCheck } from 'lucide-react';
 
 interface ScheduleSocialModalProps {
   isOpen: boolean;
@@ -18,6 +18,8 @@ export const ScheduleSocialModal: React.FC<ScheduleSocialModalProps> = ({ isOpen
   const [publishDate, setPublishDate] = useState('2026-08-30');
   const [publishTime, setPublishTime] = useState('17:00');
   const [notes, setNotes] = useState('Demonstrate botanical scalp oil application using fine needle dropper on client rows.');
+  const [hairTextureTag, setHairTextureTag] = useState('4C Coily & Protective Styling');
+  const [brandRuleAcknowledged, setBrandRuleAcknowledged] = useState(true);
 
   if (!isOpen) return null;
 
@@ -33,7 +35,7 @@ export const ScheduleSocialModal: React.FC<ScheduleSocialModalProps> = ({ isOpen
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !brandRuleAcknowledged) return;
 
     const newPost: BOSMarketingPost = {
       id: `mkt-${Date.now()}`,
@@ -45,6 +47,7 @@ export const ScheduleSocialModal: React.FC<ScheduleSocialModalProps> = ({ isOpen
       status: 'Scheduled',
       author: 'Marketing Team',
       notes,
+      reachEstimate: '15K - 25K',
     };
 
     onSave(newPost);
@@ -119,6 +122,44 @@ export const ScheduleSocialModal: React.FC<ScheduleSocialModalProps> = ({ isOpen
             </div>
           </div>
 
+          {/* Fine Hair Visual Standard Compliance Tag */}
+          <div className="p-3.5 bg-[#fbf9fa] border border-[#e3dce0] rounded-xl space-y-2.5">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-[#ad8d58]" />
+              <span className="text-xs font-bold text-[#141214] uppercase tracking-wider">
+                Visual Identity Standard & Hair Texture Tag
+              </span>
+            </div>
+            <div>
+              <label className="block text-[11px] text-[#716a70] mb-1 font-medium">
+                Primary African Hair Feature Represented:
+              </label>
+              <select
+                value={hairTextureTag}
+                onChange={(e) => setHairTextureTag(e.target.value)}
+                className="w-full border border-[#e3dce0] rounded-lg px-2.5 py-1.5 text-xs bg-white focus:outline-[#9b627d]"
+              >
+                <option value="4C Coily & Protective Styling">4C Coily & Protective Cornrows</option>
+                <option value="4B/4A Texture Blend">4B / 4A Textured Extensions Blend</option>
+                <option value="HD Lace Melt on Melanin">HD Lace Melt Seamless Skin Blend</option>
+                <option value="Knotless Braids African Art">Knotless Braids & Natural Scalp Care</option>
+                <option value="Cambodian Wave Silk Press">Cambodian Waves / Bone Straight Silk Press</option>
+              </select>
+            </div>
+            <label className="flex items-start gap-2 pt-1 text-xs text-[#554e54] cursor-pointer">
+              <input
+                type="checkbox"
+                required
+                checked={brandRuleAcknowledged}
+                onChange={(e) => setBrandRuleAcknowledged(e.target.checked)}
+                className="mt-0.5 accent-[#ad8d58]"
+              />
+              <span>
+                <b>Brand Identity Compliance:</b> I verify that all visual assets depict Black or mixed Black women with African-type hair/textures adhering to Fine Hair representation guidelines.
+              </span>
+            </label>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-[#716a70] mb-1 uppercase tracking-wider">Publish Date</label>
@@ -163,7 +204,10 @@ export const ScheduleSocialModal: React.FC<ScheduleSocialModalProps> = ({ isOpen
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl bg-[#141214] text-white font-medium text-sm hover:bg-[#262226] transition-colors cursor-pointer"
+              disabled={!brandRuleAcknowledged}
+              className={`px-5 py-2.5 rounded-xl text-white font-medium text-sm transition-colors cursor-pointer ${
+                brandRuleAcknowledged ? 'bg-[#141214] hover:bg-[#262226]' : 'bg-[#aaa1a8] cursor-not-allowed'
+              }`}
             >
               Schedule Publication
             </button>

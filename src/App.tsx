@@ -53,6 +53,7 @@ import {
   bosToAppointment,
   calculateAuditedFinancials,
 } from './utils/domainBridge';
+import { api } from './utils/apiClient';
 
 export default function App() {
   // Role-Based Access Control State
@@ -331,6 +332,20 @@ export default function App() {
   const handleConfirmAppointment = (newAppointment: Appointment) => {
     const updatedAppointments = [newAppointment, ...appointments];
     setAppointments(updatedAppointments);
+
+    // Persist to unified single-source database
+    api.createAppointment({
+      customerName: newAppointment.customerName,
+      customerPhone: newAppointment.customerPhone,
+      serviceId: newAppointment.serviceId,
+      staffId: newAppointment.staffId,
+      date: newAppointment.date,
+      time: newAppointment.time,
+      paymentMethod: newAppointment.paymentMethod || 'M-Pesa',
+      depositPaid: newAppointment.depositPaid,
+    }).catch((err) => {
+      console.warn('Central DB sync notice:', err.message);
+    });
 
     const depositTxn: FinancialTransaction = {
       id: `txn-${Date.now().toString().slice(-4)}`,

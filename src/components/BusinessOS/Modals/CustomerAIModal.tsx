@@ -160,6 +160,7 @@ interface ApprovalReviewModalProps {
   onClose: () => void;
   onApprove: (item: BOSApprovalItem) => void;
   onReject: (item: BOSApprovalItem) => void;
+  currentUser?: { id: string; name: string; role: string };
 }
 
 export const ApprovalReviewModal: React.FC<ApprovalReviewModalProps> = ({
@@ -168,8 +169,19 @@ export const ApprovalReviewModal: React.FC<ApprovalReviewModalProps> = ({
   onClose,
   onApprove,
   onReject,
+  currentUser,
 }) => {
   if (!isOpen || !item) return null;
+
+  // Segregation of Duties checks:
+  // 1. Employee cannot approve their own submission
+  const isSelfSubmission = currentUser && (
+    (item as any).requestedByUserId === currentUser.id ||
+    item.requestedBy.toLowerCase().includes(currentUser.name.split(' ')[0].toLowerCase())
+  );
+  // 2. Only Executive can sign off on price change, refund, or discount
+  const hasExecutiveSignoffAuthority = currentUser?.role === 'Executive';
+  const canApprove = !isSelfSubmission && hasExecutiveSignoffAuthority;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" onClick={onClose}>
@@ -212,13 +224,38 @@ export const ApprovalReviewModal: React.FC<ApprovalReviewModalProps> = ({
             )}
           </div>
 
+          {/* Segregation of Duties Governance Warning */}
+          {isSelfSubmission ? (
+            <div className="p-3 bg-[#fbefef] border border-[#f5c6cb] rounded-xl text-xs text-[#a94646] flex items-start gap-2">
+              <span className="font-bold">⚠️ Segregation of Duties Enforced:</span>
+              <span>You requested this proposal ({item.requestedBy}). Governance rules strictly forbid approving your own requests. An independent Executive must sign off.</span>
+            </div>
+          ) : !hasExecutiveSignoffAuthority ? (
+            <div className="p-3 bg-[#fcf6ea] border border-[#fae6be] rounded-xl text-xs text-[#a46d22] flex items-start gap-2">
+              <span className="font-bold">🔒 Restricted Authority:</span>
+              <span>Your active role ({currentUser?.role || 'Staff'}) lacks Executive sign-off privileges for pricing or financial items. Please switch to an Executive profile.</span>
+            </div>
+          ) : (
+            <div className="p-3 bg-[#eef8f3] border border-[#d6ede1] rounded-xl text-xs text-[#2e7d5a] flex items-center gap-2">
+              <span className="font-bold">✓ Dual-Control Verified:</span>
+              <span>Executive authority validated. Independent sign-off permitted.</span>
+            </div>
+          )}
+
           <div className="flex justify-between items-center pt-2">
             <button
               onClick={() => {
-                onReject(item);
-                onClose();
+                if (canApprove) {
+                  onReject(item);
+                  onClose();
+                }
               }}
-              className="px-4 py-2.5 rounded-xl border border-[#a94646] text-[#a94646] hover:bg-[#fbefef] font-medium text-sm transition-colors cursor-pointer"
+              disabled={!canApprove}
+              className={`px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
+                canApprove
+                  ? 'border-[#a94646] text-[#a94646] hover:bg-[#fbefef]'
+                  : 'border-[#e3dce0] text-[#aaa1a8] cursor-not-allowed opacity-50'
+              }`}
             >
               Reject Proposal
             </button>
@@ -231,10 +268,17 @@ export const ApprovalReviewModal: React.FC<ApprovalReviewModalProps> = ({
               </button>
               <button
                 onClick={() => {
-                  onApprove(item);
-                  onClose();
+                  if (canApprove) {
+                    onApprove(item);
+                    onClose();
+                  }
                 }}
-                className="px-5 py-2.5 rounded-xl bg-[#141214] text-white font-medium text-sm hover:bg-[#262226] transition-colors cursor-pointer"
+                disabled={!canApprove}
+                className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
+                  canApprove
+                    ? 'bg-[#141214] text-white hover:bg-[#262226]'
+                    : 'bg-[#e3dce0] text-[#716a70] cursor-not-allowed'
+                }`}
               >
                 Confirm Approval
               </button>
