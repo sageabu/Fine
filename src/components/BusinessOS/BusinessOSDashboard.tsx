@@ -34,6 +34,7 @@ import { CommercePage } from './CommercePage';
 import { MarketingHubPage } from './MarketingHubPage';
 import { AIAssistantPage } from './AIAssistantPage';
 import { ReportsApprovalsPage } from './ReportsApprovalsPage';
+import { BrandExperienceCMSPage } from './BrandExperienceCMSPage';
 
 // Modals
 import { QuickActionModal } from './Modals/QuickActionModal';
@@ -355,6 +356,10 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
               onNavigate={setActivePage}
               onOpenApproval={() => setActivePage('reports')}
             />
+          )}
+
+          {activePage === 'brand-experience' && (
+            <BrandExperienceCMSPage onOpenStorefront={onOpenStorefront} />
           )}
 
           {activePage === 'marketing' && (

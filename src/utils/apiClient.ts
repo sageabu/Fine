@@ -52,6 +52,7 @@ export interface AppointmentRecord {
   balanceDue: number;
   paymentMethod: 'M-Pesa' | 'Lipa Namba' | 'Bank' | 'Cash';
   hairNotes?: string;
+  branchId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,6 +94,7 @@ export interface StaffRecord {
   punctualityScore: number;
   commissionRate: number;
   accumulatedCommission: number;
+  branchId: string;
   notes: string;
 }
 
@@ -198,6 +200,127 @@ export interface FinancialSummary {
   completedAppointments: number;
 }
 
+export interface MediaAssetRecord {
+  id: string;
+  title: string;
+  category: 'Hero Banners' | 'Service Catalogue' | 'Shop Products' | 'Journal & Editorial' | 'Transformations' | 'Campaigns';
+  campaign: string;
+  source: 'Fine Hair Studio Shoot' | 'Editorial Campaign' | 'Customer Transformation' | 'Behind The Scenes';
+  usageRightsVerified: boolean;
+  representationVerified: boolean;
+  hairTexture: string;
+  status: 'Approved' | 'Pending Review' | 'Draft' | 'Rejected' | 'Archived';
+  uploadedBy: string;
+  approvedBy?: string;
+  url: string;
+  thumbnailUrl: string;
+  date: string;
+  rejectionReason?: string;
+}
+
+export interface HomepageHeroCampaign {
+  id: string;
+  campaignName: string;
+  status: 'Published' | 'Scheduled' | 'Draft' | 'Archived';
+  eyebrow: string;
+  headline: string;
+  subheadline: string;
+  heroImageId: string;
+  heroImageUrl: string;
+  mobileHeroImageUrl: string;
+  primaryCtaLabel: string;
+  primaryCtaAction: string;
+  secondaryCtaLabel: string;
+  secondaryCtaAction: string;
+  startDate: string;
+  endDate: string;
+  targetAudience: 'all' | 'new_clients' | 'returning_clients' | 'overdue_clients' | 'has_upcoming_appointment';
+  createdAt: string;
+  approvedBy?: string;
+}
+
+export interface HomepageSectionConfig {
+  id: string;
+  sectionKey: 'hero' | 'featured_services' | 'featured_collection' | 'promotion' | 'journal' | 'transformation' | 'ai_recommendation' | 'upcoming_appointment' | 'announcements' | 'testimonials';
+  title: string;
+  subtitle: string;
+  enabled: boolean;
+  sortOrder: number;
+  targetAudience: 'all' | 'new_clients' | 'returning_clients' | 'overdue_clients' | 'has_upcoming_appointment';
+  startDate?: string;
+  endDate?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  bannerImage?: string;
+}
+
+export interface BranchRecord {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+  phone: string;
+  status: 'Active' | 'Under Renovation';
+  stationCount: number;
+  openingHours: string;
+}
+
+export interface StaffDailyReportRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  date: string;
+  branchId: string;
+  appointmentsAssigned: number;
+  completedCount: number;
+  noShowCount: number;
+  cancelledCount: number;
+  totalServiceMinutes: number;
+  complimentsCount: number;
+  complaintsCount: number;
+  additionalServicesCount: number;
+  revenueHandled: number;
+  wentWell: string;
+  challenges: string;
+  managementNotes: string;
+  voiceNoteTranscript?: string;
+  submittedAt: string;
+  status: 'Submitted' | 'Reviewed';
+}
+
+export interface StaffPerformanceEvaluationRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  month: string;
+  attendancePunctualityScore: number;
+  qualityOfWorkScore: number;
+  clientExperienceScore: number;
+  professionalConductScore: number;
+  teamworkAccountabilityScore: number;
+  standardsScore: number;
+  overallKpiScore: number;
+  appointmentsCompleted: number;
+  clientSatisfactionPct: number;
+  strengths: string[];
+  areasForImprovement: string[];
+  trainingNeeds: string;
+  managerComment: string;
+  status: 'Draft' | 'Finalized' | 'Acknowledged';
+}
+
+export interface ExceptionRecord {
+  id: string;
+  title: string;
+  category: string;
+  severity: 'Critical' | 'Warning' | 'Info';
+  status: 'Open' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+  assignedTo: string;
+  details: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Current active session tracking in browser
 let activeUserId = 'usr-cfo';
 
@@ -235,6 +358,9 @@ export const api = {
       body: JSON.stringify({ email, pin }),
     }),
 
+  // Branches
+  getBranches: async () => (await request<{ branches: BranchRecord[] }>('/branches')).branches,
+
   // Services
   getServices: async () => (await request<{ services: ServiceRecord[] }>('/services')).services,
   proposePrice: async (serviceId: string, proposedPrice: number, reason: string) =>
@@ -253,45 +379,106 @@ export const api = {
     staffId: string;
     date: string;
     time: string;
-    paymentMethod: string;
+    paymentMethod?: string;
     depositPaid?: number;
     hairNotes?: string;
+    branchId?: string;
   }) =>
     await request<{ success: boolean; appointment: AppointmentRecord }>('/appointments', {
       method: 'POST',
       body: JSON.stringify(appointmentData),
     }),
-  updateAppointmentStatus: async (aptId: string, status: string) =>
-    await request<{ success: boolean; appointment: AppointmentRecord }>(`/appointments/${aptId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    }),
+  updateAppointmentStatus: async (
+    appointmentId: string,
+    status: 'Confirmed' | 'In service' | 'Completed' | 'No-show' | 'Cancelled'
+  ) =>
+    await request<{ success: boolean; appointment: AppointmentRecord }>(
+      `/appointments/${appointmentId}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }
+    ),
 
   // Staff
   getStaff: async () => (await request<{ staff: StaffRecord[] }>('/staff')).staff,
-  updateStaffAttendance: async (staffId: string, present: boolean) =>
-    await request<{ success: boolean; staff: StaffRecord }>(`/staff/${staffId}/attendance`, {
-      method: 'PATCH',
-      body: JSON.stringify({ present }),
+  getStaffDailyReports: async () => (await request<{ reports: StaffDailyReportRecord[] }>('/staff/daily-reports')).reports,
+  submitDailyReport: async (reportData: Partial<StaffDailyReportRecord>) =>
+    await request<{ success: boolean; report: StaffDailyReportRecord }>('/staff/daily-reports', {
+      method: 'POST',
+      body: JSON.stringify(reportData),
+    }),
+  getStaffEvaluations: async () => (await request<{ evaluations: StaffPerformanceEvaluationRecord[] }>('/staff/evaluations')).evaluations,
+  saveStaffEvaluation: async (evalData: Partial<StaffPerformanceEvaluationRecord>) =>
+    await request<{ success: boolean; evaluation: StaffPerformanceEvaluationRecord }>('/staff/evaluations', {
+      method: 'POST',
+      body: JSON.stringify(evalData),
     }),
 
-  // Customers
+  // Customers CRM
   getCustomers: async () => (await request<{ customers: CustomerRecord[] }>('/customers')).customers,
 
   // Inventory
   getInventory: async () => (await request<{ inventory: InventoryRecord[] }>('/inventory')).inventory,
-  adjustInventoryStock: async (id: string, delta: number, reason: string) =>
-    await request<{ success: boolean; item: InventoryRecord }>(`/inventory/${id}/adjust`, {
+  adjustInventory: async (itemId: string, delta: number, reason: string) =>
+    await request<{ success: boolean; item: InventoryRecord }>(`/inventory/${itemId}/adjust`, {
       method: 'POST',
       body: JSON.stringify({ delta, reason }),
     }),
 
-  // Approvals & Segregation of Duties
+  // Approvals
   getApprovals: async () => (await request<{ approvals: ApprovalRecord[] }>('/approvals')).approvals,
   decideApproval: async (approvalId: string, decision: 'Approved' | 'Rejected', rejectionReason?: string) =>
     await request<{ success: boolean; approval: ApprovalRecord }>(`/approvals/${approvalId}/decide`, {
       method: 'POST',
       body: JSON.stringify({ decision, rejectionReason }),
+    }),
+
+  // Brand & Customer Experience (CMS & Media Library)
+  getMediaAssets: async () => (await request<{ mediaAssets: MediaAssetRecord[] }>('/brand-experience/media-library')).mediaAssets,
+  addMediaAsset: async (assetData: Partial<MediaAssetRecord>) =>
+    await request<{ success: boolean; asset: MediaAssetRecord }>('/brand-experience/media-library', {
+      method: 'POST',
+      body: JSON.stringify(assetData),
+    }),
+  decideMediaAsset: async (assetId: string, status: 'Approved' | 'Rejected' | 'Archived', rejectionReason?: string) =>
+    await request<{ success: boolean; asset: MediaAssetRecord }>(`/brand-experience/media-library/${assetId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, rejectionReason }),
+    }),
+  getHeroCampaigns: async () =>
+    await request<{ campaigns: HomepageHeroCampaign[]; activeHero: HomepageHeroCampaign }>('/brand-experience/hero-campaigns'),
+  createHeroCampaign: async (campaign: Partial<HomepageHeroCampaign>) =>
+    await request<{ success: boolean; campaign: HomepageHeroCampaign }>('/brand-experience/hero-campaigns', {
+      method: 'POST',
+      body: JSON.stringify(campaign),
+    }),
+  updateHeroCampaign: async (id: string, campaign: Partial<HomepageHeroCampaign>) =>
+    await request<{ success: boolean; campaign: HomepageHeroCampaign }>(`/brand-experience/hero-campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(campaign),
+    }),
+  getHomepageSections: async () =>
+    (await request<{ sections: HomepageSectionConfig[] }>('/brand-experience/sections')).sections,
+  updateHomepageSections: async (sections: HomepageSectionConfig[]) =>
+    await request<{ success: boolean; sections: HomepageSectionConfig[] }>('/brand-experience/sections', {
+      method: 'PUT',
+      body: JSON.stringify({ sections }),
+    }),
+  getPersonalizedHome: async (criteria: { customerId?: string; phone?: string; hairTexture?: string }) =>
+    await request<{
+      hero: HomepageHeroCampaign & {
+        dynamicEyebrow: string;
+        dynamicHeadline: string;
+        dynamicSubheadline: string;
+      };
+      sections: HomepageSectionConfig[];
+      clientLifecycle: 'new' | 'returning' | 'overdue' | 'upcoming';
+      clientProfile: CustomerRecord | null;
+      upcomingAppointment: AppointmentRecord | null;
+    }>('/brand-experience/personalize-home', {
+      method: 'POST',
+      body: JSON.stringify(criteria),
     }),
 
   // Marketing
@@ -323,8 +510,15 @@ export const api = {
       method: 'POST',
     }),
 
-  // Financials & Audit Logs
-  getFinancials: async () =>
-    (await request<{ financials: FinancialSummary }>('/financials')).financials,
+  // Exceptions
+  getExceptions: async () => (await request<{ exceptions: ExceptionRecord[] }>('/exceptions')).exceptions,
+  updateException: async (id: string, status: string, assignedTo?: string) =>
+    await request<{ success: boolean; exception: ExceptionRecord }>(`/exceptions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, assignedTo }),
+    }),
+
+  // Audit Logs & Financials
   getAuditLogs: async () => (await request<{ logs: AuditLogRecord[] }>('/audit-logs')).logs,
+  getFinancials: async () => (await request<{ financials: FinancialSummary }>('/financials')).financials,
 };

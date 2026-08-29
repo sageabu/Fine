@@ -39,6 +39,10 @@ const PAGE_TITLES: Record<BusinessOSPage, { title: string; subtitle: string }> =
     title: 'Commerce & Inventory',
     subtitle: 'Product retail, inventory stock thresholds, payments, discounts and refund logs.',
   },
+  'brand-experience': {
+    title: 'Customer Home Content Manager',
+    subtitle: 'Manage hero messaging, modular homepage layout order, brand media assets, and AI personalization.',
+  },
   marketing: {
     title: 'Marketing Hub',
     subtitle: 'Content calendar, campaign ROI attribution, and multi-channel publishing.',

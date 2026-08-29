@@ -15,6 +15,7 @@ import {
   Store,
   ShieldCheck,
   Lock,
+  LayoutTemplate,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'customers', label: 'Customers / CRM', icon: UserCheck },
     { id: 'services', label: 'Services & Pricing', icon: Tag },
     { id: 'commerce', label: 'Commerce', icon: ShoppingBag },
+    { id: 'brand-experience', label: 'Customer Home CMS', icon: LayoutTemplate },
     { id: 'marketing', label: 'Marketing Hub', icon: Share2 },
     { id: 'ai', label: 'AI Assistant', icon: Sparkles },
     { id: 'reports', label: 'Reports & Approvals', icon: FileCheck2, badge: pendingApprovalsCount },

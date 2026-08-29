@@ -6,6 +6,7 @@ export type BusinessOSPage =
   | 'services'
   | 'commerce'
   | 'marketing'
+  | 'brand-experience'
   | 'ai'
   | 'reports';
 
