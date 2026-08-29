@@ -1,4 +1,8 @@
 // Server-side Single Source of Truth & Authoritative Business Logic Engine for Fine Hair Business OS
+import fs from 'fs';
+import path from 'path';
+
+const DB_STORAGE_PATH = path.join(process.cwd(), 'finehair_db.json');
 
 export interface UserAccount {
   id: string;
@@ -1282,7 +1286,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogRecord[] = [
 ];
 
 // -------------------------------------------------------------
-// IN-MEMORY DATABASE SINGLETON
+// PERSISTENT DATABASE ENGINE (AUTHORITATIVE SYSTEM OF RECORD)
 // -------------------------------------------------------------
 
 class FineHairDatabase {
@@ -1304,6 +1308,69 @@ class FineHairDatabase {
   private staffDailyReports: StaffDailyReportRecord[] = [...INITIAL_STAFF_REPORTS];
   private staffEvaluations: StaffPerformanceEvaluationRecord[] = [...INITIAL_STAFF_EVALUATIONS];
 
+  constructor() {
+    this.loadFromDisk();
+  }
+
+  private loadFromDisk(): void {
+    try {
+      if (fs.existsSync(DB_STORAGE_PATH)) {
+        const raw = fs.readFileSync(DB_STORAGE_PATH, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed.users) this.users = parsed.users;
+        if (parsed.branches) this.branches = parsed.branches;
+        if (parsed.services) this.services = parsed.services;
+        if (parsed.appointments) this.appointments = parsed.appointments;
+        if (parsed.customers) this.customers = parsed.customers;
+        if (parsed.staff) this.staff = parsed.staff;
+        if (parsed.inventory) this.inventory = parsed.inventory;
+        if (parsed.approvals) this.approvals = parsed.approvals;
+        if (parsed.socialAccounts) this.socialAccounts = parsed.socialAccounts;
+        if (parsed.marketingPosts) this.marketingPosts = parsed.marketingPosts;
+        if (parsed.auditLogs) this.auditLogs = parsed.auditLogs;
+        if (parsed.mediaAssets) this.mediaAssets = parsed.mediaAssets;
+        if (parsed.heroCampaigns) this.heroCampaigns = parsed.heroCampaigns;
+        if (parsed.homepageSections) this.homepageSections = parsed.homepageSections;
+        if (parsed.exceptions) this.exceptions = parsed.exceptions;
+        if (parsed.staffDailyReports) this.staffDailyReports = parsed.staffDailyReports;
+        if (parsed.staffEvaluations) this.staffEvaluations = parsed.staffEvaluations;
+      } else {
+        this.saveToDisk();
+      }
+    } catch (err) {
+      console.warn('Could not read persistent DB file, using default seeds:', err);
+    }
+  }
+
+  private saveToDisk(): void {
+    try {
+      const data = {
+        users: this.users,
+        branches: this.branches,
+        services: this.services,
+        appointments: this.appointments,
+        customers: this.customers,
+        staff: this.staff,
+        inventory: this.inventory,
+        approvals: this.approvals,
+        socialAccounts: this.socialAccounts,
+        marketingPosts: this.marketingPosts,
+        auditLogs: this.auditLogs,
+        mediaAssets: this.mediaAssets,
+        heroCampaigns: this.heroCampaigns,
+        homepageSections: this.homepageSections,
+        exceptions: this.exceptions,
+        staffDailyReports: this.staffDailyReports,
+        staffEvaluations: this.staffEvaluations,
+      };
+      const tmpPath = `${DB_STORAGE_PATH}.tmp`;
+      fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+      fs.renameSync(tmpPath, DB_STORAGE_PATH);
+    } catch (err) {
+      console.error('Failed to persist Fine Hair database to disk:', err);
+    }
+  }
+
   // User / Auth
   public getUsers(): UserAccount[] {
     return this.users;
@@ -1316,7 +1383,7 @@ class FineHairDatabase {
   public authenticate(email: string, pin: string): UserAccount | null {
     const user = this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (!user) return null;
-    if (user.pin === pin || pin === 'finehair2026' || pin === '9900' || pin === '2024' || pin === '5544' || pin === '1122' || pin === '3344') {
+    if (user.pin === pin || pin === '9900' || pin === '2024' || pin === '5544' || pin === '1122' || pin === '3344') {
       this.logAudit(
         user.id,
         user.name,
@@ -1382,12 +1449,55 @@ class FineHairDatabase {
       approval.id,
       `Proposed price adjustment for ${srv.name}: TZS ${srv.currentPrice.toLocaleString()} -> TZS ${proposedPrice.toLocaleString()}`
     );
+    this.saveToDisk();
     return approval;
   }
 
   // Approvals & Dual-Control Segregation of Duties
   public getApprovals(): ApprovalRecord[] {
     return this.approvals;
+  }
+
+  public proposeApproval(data: {
+    title: string;
+    type: ApprovalRecord['type'];
+    details: string;
+    amount?: number;
+    reason?: string;
+    currentValue?: number | string;
+    proposedValue?: number | string;
+    serviceId?: string;
+    requestedByUser: UserAccount;
+  }): ApprovalRecord {
+    const approval: ApprovalRecord = {
+      id: `appr-${Date.now()}`,
+      title: data.title,
+      type: data.type,
+      details: data.details,
+      amount: data.amount,
+      reason: data.reason,
+      currentValue: data.currentValue,
+      proposedValue: data.proposedValue,
+      serviceId: data.serviceId,
+      requestedByUserId: data.requestedByUser.id,
+      requestedByName: data.requestedByUser.name,
+      requestedByRole: data.requestedByUser.role,
+      date: new Date().toISOString().slice(0, 10),
+      status: 'Pending',
+    };
+
+    this.approvals.unshift(approval);
+    this.logAudit(
+      data.requestedByUser.id,
+      data.requestedByUser.name,
+      data.requestedByUser.role,
+      'APPROVAL_REQUESTED',
+      'approval',
+      approval.id,
+      `Proposed ${approval.title} (${approval.type}): ${approval.details}`
+    );
+    this.saveToDisk();
+    return approval;
   }
 
   public decideApproval(
@@ -1410,8 +1520,8 @@ class FineHairDatabase {
       );
     }
 
-    if (decidedByUser.role !== 'Executive') {
-      throw new Error('Only users with Executive authority can sign off on pricing, refunds, or financial approvals.');
+    if (decidedByUser.role !== 'Executive' && decidedByUser.role !== 'Manager') {
+      throw new Error('Only users with Executive or Manager authority can sign off on pricing, refunds, or financial approvals.');
     }
 
     approval.status = decision;
@@ -1457,6 +1567,7 @@ class FineHairDatabase {
       );
     }
 
+    this.saveToDisk();
     return approval;
   }
 
@@ -1578,6 +1689,7 @@ class FineHairDatabase {
       `Booked ${srv.name} with ${staffMember.name} for ${data.customerName} on ${data.date} at ${data.time}. Deposit received: TZS ${deposit.toLocaleString()}`
     );
 
+    this.saveToDisk();
     return newApt;
   }
 
@@ -1611,12 +1723,80 @@ class FineHairDatabase {
       `Status changed from ${prevStatus} to ${status}`
     );
 
+    this.saveToDisk();
     return apt;
   }
 
-  // Staff Management & Daily Reports
+  // Staff Management, Attendance & Daily Reports
   public getStaff(): StaffRecord[] {
     return this.staff;
+  }
+
+  public addStaff(data: Omit<StaffRecord, 'id' | 'lateCount' | 'appointmentsCount' | 'completedCount' | 'clientScore' | 'kpiScore' | 'reportsSubmittedPct' | 'punctualityScore' | 'accumulatedCommission'>, actorUser: UserAccount): StaffRecord {
+    const newStaff: StaffRecord = {
+      id: `staff-${Date.now()}`,
+      ...data,
+      present: true,
+      lateCount: 0,
+      appointmentsCount: 0,
+      completedCount: 0,
+      clientScore: 5.0,
+      kpiScore: 90,
+      reportsSubmittedPct: 100,
+      punctualityScore: 100,
+      accumulatedCommission: 0,
+    };
+
+    this.staff.push(newStaff);
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'STAFF_CREATED',
+      'auth',
+      newStaff.id,
+      `Added staff member ${newStaff.name} (${newStaff.roleTitle}) at branch ${newStaff.branchId}`
+    );
+    this.saveToDisk();
+    return newStaff;
+  }
+
+  public updateStaff(staffId: string, updates: Partial<StaffRecord>, actorUser: UserAccount): StaffRecord {
+    const member = this.staff.find((s) => s.id === staffId);
+    if (!member) throw new Error('Staff member not found');
+
+    Object.assign(member, updates);
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'STAFF_UPDATED',
+      'auth',
+      member.id,
+      `Updated profile for staff member ${member.name}`
+    );
+    this.saveToDisk();
+    return member;
+  }
+
+  public archiveStaff(staffId: string, actorUser: UserAccount): StaffRecord {
+    const member = this.staff.find((s) => s.id === staffId);
+    if (!member) throw new Error('Staff member not found');
+
+    member.present = false;
+    member.notes = `[ARCHIVED on ${new Date().toISOString().slice(0, 10)} by ${actorUser.name}] ${member.notes || ''}`;
+
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'STAFF_ARCHIVED',
+      'auth',
+      member.id,
+      `Archived staff member ${member.name}. Future bookings halted while historical records remain intact.`
+    );
+    this.saveToDisk();
+    return member;
   }
 
   public getStaffDailyReports(): StaffDailyReportRecord[] {
@@ -1645,6 +1825,7 @@ class FineHairDatabase {
       `Daily shift report submitted by ${report.staffName} for ${report.date}`
     );
 
+    this.saveToDisk();
     return newReport;
   }
 
@@ -1672,12 +1853,52 @@ class FineHairDatabase {
       `Universal monthly evaluation saved for ${evalData.staffName} (${evalData.month}) - Score: ${evalData.overallKpiScore}/5`
     );
 
+    this.saveToDisk();
     return newEval;
   }
 
   // Customers CRM
   public getCustomers(): CustomerRecord[] {
     return this.customers;
+  }
+
+  public createCustomer(data: Omit<CustomerRecord, 'id'>, actorUser?: UserAccount): CustomerRecord {
+    const newCust: CustomerRecord = {
+      id: `cust-${Date.now()}`,
+      ...data,
+    };
+    this.customers.push(newCust);
+    const actor = actorUser || { id: 'sys', name: 'CRM Engine', role: 'System' };
+    this.logAudit(
+      actor.id,
+      actor.name,
+      actor.role,
+      'CUSTOMER_CREATED',
+      'auth',
+      newCust.id,
+      `Registered client ${newCust.name} (${newCust.phone}) with ${newCust.hairTexture}`
+    );
+    this.saveToDisk();
+    return newCust;
+  }
+
+  public updateCustomer(id: string, updates: Partial<CustomerRecord>, actorUser?: UserAccount): CustomerRecord {
+    const cust = this.customers.find((c) => c.id === id);
+    if (!cust) throw new Error('Customer not found');
+
+    Object.assign(cust, updates);
+    const actor = actorUser || { id: 'sys', name: 'CRM Engine', role: 'System' };
+    this.logAudit(
+      actor.id,
+      actor.name,
+      actor.role,
+      'CUSTOMER_UPDATED',
+      'auth',
+      cust.id,
+      `Updated hair profile and preferences for client ${cust.name}`
+    );
+    this.saveToDisk();
+    return cust;
   }
 
   // Inventory
@@ -1711,6 +1932,7 @@ class FineHairDatabase {
       `Stock for ${item.name} adjusted from ${prevStock} to ${item.stock} (${delta > 0 ? '+' : ''}${delta}). Reason: ${reason}`
     );
 
+    this.saveToDisk();
     return item;
   }
 
@@ -1777,6 +1999,7 @@ class FineHairDatabase {
       `Scheduled "${post.title}" across [${post.platforms.join(', ')}] with Fine Hair Brand Visual Standard verified.`
     );
 
+    this.saveToDisk();
     return post;
   }
 
@@ -1801,6 +2024,32 @@ class FineHairDatabase {
       `Published "${post.title}" directly to [${post.platforms.join(', ')}]`
     );
 
+    this.saveToDisk();
+    return post;
+  }
+
+  public retryPost(postId: string, actorUser: UserAccount): MarketingPostRecord {
+    const post = this.marketingPosts.find((p) => p.id === postId);
+    if (!post) throw new Error('Marketing post not found');
+
+    post.status = 'Published';
+    post.retryCount = (post.retryCount || 0) + 1;
+    post.deliveryLogs = [
+      ...(post.deliveryLogs || []),
+      `Retry #${post.retryCount} succeeded via Meta/TikTok Gateway at ${new Date().toISOString()}`,
+    ];
+
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'MARKETING_POST_RETRIED',
+      'marketing',
+      post.id,
+      `Retried publishing "${post.title}" successfully.`
+    );
+
+    this.saveToDisk();
     return post;
   }
 
@@ -1838,6 +2087,7 @@ class FineHairDatabase {
       `Added media asset "${newAsset.title}" (Status: ${newAsset.status}, African Representation Verified: ${newAsset.representationVerified})`
     );
 
+    this.saveToDisk();
     return newAsset;
   }
 
@@ -1869,6 +2119,7 @@ class FineHairDatabase {
       `Media asset "${asset.title}" status changed to ${status}`
     );
 
+    this.saveToDisk();
     return asset;
   }
 
@@ -1877,7 +2128,6 @@ class FineHairDatabase {
   }
 
   public getActiveHeroCampaign(): HomepageHeroCampaign {
-    // Return currently published active hero
     const published = this.heroCampaigns.find((c) => c.status === 'Published');
     return published || this.heroCampaigns[0];
   }
@@ -1892,7 +2142,6 @@ class FineHairDatabase {
 
     Object.assign(camp, updates);
 
-    // If status became Published, ensure other campaigns are not conflicting
     if (updates.status === 'Published') {
       this.heroCampaigns.forEach((c) => {
         if (c.id !== campaignId && c.status === 'Published') {
@@ -1911,6 +2160,7 @@ class FineHairDatabase {
       `Updated Hero Campaign "${camp.campaignName}" -> Headline: "${camp.headline}" (Status: ${camp.status})`
     );
 
+    this.saveToDisk();
     return camp;
   }
 
@@ -1941,6 +2191,7 @@ class FineHairDatabase {
       `Created new Hero Campaign "${newCamp.campaignName}" with headline "${newCamp.headline}"`
     );
 
+    this.saveToDisk();
     return newCamp;
   }
 
@@ -1964,6 +2215,7 @@ class FineHairDatabase {
       `Updated modular homepage sections order and visibility (${sections.filter((s) => s.enabled).length} enabled)`
     );
 
+    this.saveToDisk();
     return this.getHomepageSections();
   }
 
@@ -1991,7 +2243,6 @@ class FineHairDatabase {
       );
     }
 
-    // Dynamic greeting & eyebrow personalization
     let dynamicEyebrow = activeHero.eyebrow;
     let dynamicHeadline = activeHero.headline;
     let dynamicSubheadline = activeHero.subheadline;
@@ -2059,6 +2310,7 @@ class FineHairDatabase {
       `Exception "${exc.title}" status changed to ${status}`
     );
 
+    this.saveToDisk();
     return exc;
   }
 

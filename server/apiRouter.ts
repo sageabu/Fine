@@ -136,6 +136,36 @@ apiRouter.get('/staff', (_req: Request, res: Response) => {
   res.json({ staff: db.getStaff() });
 });
 
+apiRouter.post('/staff', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const newStaff = db.addStaff(req.body, currentUser);
+    res.status(201).json({ success: true, staff: newStaff });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.put('/staff/:id', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const updated = db.updateStaff(req.params.id, req.body, currentUser);
+    res.json({ success: true, staff: updated });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/staff/:id/archive', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const archived = db.archiveStaff(req.params.id, currentUser);
+    res.json({ success: true, staff: archived });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 apiRouter.get('/staff/daily-reports', (_req: Request, res: Response) => {
   res.json({ reports: db.getStaffDailyReports() });
 });
@@ -199,6 +229,26 @@ apiRouter.get('/customers', (_req: Request, res: Response) => {
   res.json({ customers: db.getCustomers() });
 });
 
+apiRouter.post('/customers', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const customer = db.createCustomer(req.body, currentUser);
+    res.status(201).json({ success: true, customer });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.put('/customers/:id', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const customer = db.updateCustomer(req.params.id, req.body, currentUser);
+    res.json({ success: true, customer });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // -------------------------------------------------------------
 // 7. INVENTORY
 // -------------------------------------------------------------
@@ -225,6 +275,32 @@ apiRouter.post('/inventory/:id/adjust', (req: Request, res: Response) => {
 
 apiRouter.get('/approvals', (_req: Request, res: Response) => {
   res.json({ approvals: db.getApprovals() });
+});
+
+apiRouter.post('/approvals/propose', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  const { title, type, details, amount, reason, currentValue, proposedValue, serviceId } = req.body;
+
+  if (!title || !type || !details) {
+    return res.status(400).json({ error: 'Title, type, and details are required' });
+  }
+
+  try {
+    const approval = db.proposeApproval({
+      title,
+      type,
+      details,
+      amount: amount ? Number(amount) : undefined,
+      reason,
+      currentValue,
+      proposedValue,
+      serviceId,
+      requestedByUser: currentUser,
+    });
+    res.status(201).json({ success: true, approval });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 apiRouter.post('/approvals/:id/decide', (req: Request, res: Response) => {
@@ -395,6 +471,16 @@ apiRouter.post('/marketing/posts/:id/publish-now', (req: Request, res: Response)
   const currentUser = getCurrentUser(req);
   try {
     const post = db.publishPostNow(req.params.id, currentUser);
+    res.json({ success: true, post });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/marketing/posts/:id/retry', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const post = db.retryPost(req.params.id, currentUser);
     res.json({ success: true, post });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
