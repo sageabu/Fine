@@ -361,8 +361,26 @@ export const api = {
   // Branches
   getBranches: async () => (await request<{ branches: BranchRecord[] }>('/branches')).branches,
 
-  // Services
+  // Services Master CRUD
   getServices: async () => (await request<{ services: ServiceRecord[] }>('/services')).services,
+  addService: async (serviceData: Partial<ServiceRecord>) =>
+    await request<{ success: boolean; service: ServiceRecord }>('/services', {
+      method: 'POST',
+      body: JSON.stringify(serviceData),
+    }),
+  updateService: async (id: string, serviceData: Partial<ServiceRecord>) =>
+    await request<{ success: boolean; service: ServiceRecord }>(`/services/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(serviceData),
+    }),
+  archiveService: async (id: string) =>
+    await request<{ success: boolean; service: ServiceRecord }>(`/services/${id}/archive`, {
+      method: 'POST',
+    }),
+  reactivateService: async (id: string) =>
+    await request<{ success: boolean; service: ServiceRecord }>(`/services/${id}/reactivate`, {
+      method: 'POST',
+    }),
   proposePrice: async (serviceId: string, proposedPrice: number, reason: string) =>
     await request<{ success: boolean; approval: ApprovalRecord }>(`/services/${serviceId}/propose-price`, {
       method: 'POST',
@@ -400,8 +418,31 @@ export const api = {
       }
     ),
 
-  // Staff
+  // Staff Master
   getStaff: async () => (await request<{ staff: StaffRecord[] }>('/staff')).staff,
+  addStaff: async (staffData: Partial<StaffRecord>) =>
+    await request<{ success: boolean; staff: StaffRecord }>('/staff', {
+      method: 'POST',
+      body: JSON.stringify(staffData),
+    }),
+  updateStaff: async (id: string, staffData: Partial<StaffRecord>) =>
+    await request<{ success: boolean; staff: StaffRecord }>(`/staff/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(staffData),
+    }),
+  archiveStaff: async (id: string) =>
+    await request<{ success: boolean; staff: StaffRecord }>(`/staff/${id}/archive`, {
+      method: 'POST',
+    }),
+  reactivateStaff: async (id: string) =>
+    await request<{ success: boolean; staff: StaffRecord }>(`/staff/${id}/reactivate`, {
+      method: 'POST',
+    }),
+  recordStaffAttendance: async (staffId: string, type: 'check_in' | 'check_out') =>
+    await request<{ success: boolean; staff: StaffRecord; timestamp: string }>(`/staff/${staffId}/attendance`, {
+      method: 'POST',
+      body: JSON.stringify({ type }),
+    }),
   getStaffDailyReports: async () => (await request<{ reports: StaffDailyReportRecord[] }>('/staff/daily-reports')).reports,
   submitDailyReport: async (reportData: Partial<StaffDailyReportRecord>) =>
     await request<{ success: boolean; report: StaffDailyReportRecord }>('/staff/daily-reports', {
@@ -415,15 +456,42 @@ export const api = {
       body: JSON.stringify(evalData),
     }),
 
-  // Customers CRM
+  // Customers CRM & Complaints
   getCustomers: async () => (await request<{ customers: CustomerRecord[] }>('/customers')).customers,
+  createCustomer: async (data: Partial<CustomerRecord>) =>
+    await request<{ success: boolean; customer: CustomerRecord }>('/customers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateCustomer: async (id: string, data: Partial<CustomerRecord>) =>
+    await request<{ success: boolean; customer: CustomerRecord }>(`/customers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  getComplaints: async () => (await request<{ complaints: any[] }>('/customers/complaints')).complaints,
+  createComplaint: async (data: any) =>
+    await request<{ success: boolean; complaint: any }>('/customers/complaints', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateComplaintStatus: async (id: string, status: string, resolutionNotes?: string) =>
+    await request<{ success: boolean; complaint: any }>(`/customers/complaints/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, resolutionNotes }),
+    }),
 
-  // Inventory
+  // Inventory & Stock Movements
   getInventory: async () => (await request<{ inventory: InventoryRecord[] }>('/inventory')).inventory,
   adjustInventory: async (itemId: string, delta: number, reason: string) =>
     await request<{ success: boolean; item: InventoryRecord }>(`/inventory/${itemId}/adjust`, {
       method: 'POST',
       body: JSON.stringify({ delta, reason }),
+    }),
+  getStockMovements: async () => (await request<{ movements: any[] }>('/inventory/movements')).movements,
+  recordStockMovement: async (inventoryId: string, type: string, quantityChange: number, reason: string) =>
+    await request<{ success: boolean; movement: any }>('/inventory/movement', {
+      method: 'POST',
+      body: JSON.stringify({ inventoryId, type, quantityChange, reason }),
     }),
 
   // Approvals
@@ -458,6 +526,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(campaign),
     }),
+  rollbackHeroCampaign: async (id: string) =>
+    await request<{ success: boolean; campaign: HomepageHeroCampaign }>(`/brand-experience/hero-campaigns/${id}/rollback`, {
+      method: 'POST',
+    }),
   getHomepageSections: async () =>
     (await request<{ sections: HomepageSectionConfig[] }>('/brand-experience/sections')).sections,
   updateHomepageSections: async (sections: HomepageSectionConfig[]) =>
@@ -480,6 +552,34 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(criteria),
     }),
+
+  // Payments & Ledger
+  createPaymentIntent: async (data: {
+    appointmentId?: string;
+    orderId?: string;
+    amount: number;
+    customerName: string;
+    customerPhone: string;
+    provider?: string;
+  }) =>
+    await request<{ success: boolean; paymentIntent: any }>('/payments/intent', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  verifyPaymentWebhook: async (payload: any) =>
+    await request<{ success: boolean; verified: boolean; transactionId: string }>('/payments/webhook', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  // AI Assistance Layer
+  getAiConcierge: async (query: string, hairTexture?: string, budgetTZS?: number) =>
+    await request<{ success: boolean; recommendation: any }>('/ai/concierge', {
+      method: 'POST',
+      body: JSON.stringify({ query, hairTexture, budgetTZS }),
+    }),
+  getAiManagementAdvisor: async () =>
+    await request<{ success: boolean; insights: any }>('/ai/management-advisor'),
 
   // Marketing
   getSocialAccounts: async () =>

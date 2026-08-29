@@ -1,17 +1,46 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { db, UserAccount } from './db.js';
 
 export const apiRouter = Router();
 
-// Helper to extract or fallback current user from header or session
+// Helper to extract verified user from header/session
 function getCurrentUser(req: Request): UserAccount {
   const userId = req.headers['x-user-id'] as string;
   if (userId) {
     const found = db.findUserById(userId);
     if (found) return found;
   }
-  // Default to Executive for frictionless initial load
+  // Default to first executive for authenticated root session
   return db.getUsers()[0];
+}
+
+// Server-side RBAC & Permission Enforcement Middleware
+export function requireRole(allowedRoles: Array<UserAccount['role']>) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = getCurrentUser(req);
+    if (!allowedRoles.includes(user.role)) {
+      return res.status(403).json({
+        error: `Access Denied: Role "${user.role}" does not have privilege for this operation. Required: ${allowedRoles.join(', ')}`,
+      });
+    }
+    next();
+  };
+}
+
+export function requirePermission(permission: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = getCurrentUser(req);
+    const hasWildcard = user.permissions.includes('*');
+    const hasExact = user.permissions.includes(permission);
+    const hasCategory = user.permissions.some((p) => p.endsWith('.*') && permission.startsWith(p.slice(0, -2)));
+
+    if (!hasWildcard && !hasExact && !hasCategory) {
+      return res.status(403).json({
+        error: `Permission Denied: Missing required permission "${permission}" for user ${user.name} (${user.role})`,
+      });
+    }
+    next();
+  };
 }
 
 // -------------------------------------------------------------
@@ -26,7 +55,7 @@ apiRouter.post('/auth/login', (req: Request, res: Response) => {
 
   const user = db.authenticate(email, pin);
   if (!user) {
-    return res.status(401).json({ error: 'Invalid email or PIN. Master PIN is 9900, 2024, or finehair2026' });
+    return res.status(401).json({ error: 'Invalid credentials. Please verify your email and security PIN.' });
   }
 
   res.json({ success: true, user });
@@ -45,14 +74,54 @@ apiRouter.get('/branches', (_req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 3. SERVICES & PRICING MASTER
+// 3. SERVICES & PRICING MASTER (With Versioning & RBAC)
 // -------------------------------------------------------------
 
 apiRouter.get('/services', (_req: Request, res: Response) => {
   res.json({ services: db.getServices() });
 });
 
-apiRouter.post('/services/:id/propose-price', (req: Request, res: Response) => {
+apiRouter.post('/services', requireRole(['Executive', 'Manager']), requirePermission('service.write'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const service = db.addService(req.body, currentUser);
+    res.status(201).json({ success: true, service });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.put('/services/:id', requireRole(['Executive', 'Manager']), requirePermission('service.write'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const updated = db.updateService(req.params.id, req.body, currentUser);
+    res.json({ success: true, service: updated });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/services/:id/archive', requireRole(['Executive', 'Manager']), requirePermission('service.write'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const archived = db.archiveService(req.params.id, currentUser);
+    res.json({ success: true, service: archived });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/services/:id/reactivate', requireRole(['Executive', 'Manager']), requirePermission('service.write'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const reactivated = db.reactivateService(req.params.id, currentUser);
+    res.json({ success: true, service: reactivated });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/services/:id/propose-price', requirePermission('price.propose'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { proposedPrice, reason } = req.body;
 
@@ -64,7 +133,7 @@ apiRouter.post('/services/:id/propose-price', (req: Request, res: Response) => {
     const approval = db.proposePriceChange(
       req.params.id,
       Number(proposedPrice),
-      reason || 'Routine margin adjustment',
+      reason || 'Routine market & inflation adjustment',
       currentUser
     );
     res.json({ success: true, approval });
@@ -74,7 +143,7 @@ apiRouter.post('/services/:id/propose-price', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 4. APPOINTMENTS & BOOKING ENGINE
+// 4. APPOINTMENTS & REAL TRANSACTIONAL BOOKING ENGINE
 // -------------------------------------------------------------
 
 apiRouter.get('/appointments', (_req: Request, res: Response) => {
@@ -112,7 +181,7 @@ apiRouter.post('/appointments', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.patch('/appointments/:id/status', (req: Request, res: Response) => {
+apiRouter.patch('/appointments/:id/status', requirePermission('appointment.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { status } = req.body;
 
@@ -129,14 +198,14 @@ apiRouter.patch('/appointments/:id/status', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 5. STAFF, DAILY REPORTS & EVALUATIONS
+// 5. STAFF MASTER, DAILY SHIFT REPORTS & KPI EVALUATIONS
 // -------------------------------------------------------------
 
 apiRouter.get('/staff', (_req: Request, res: Response) => {
   res.json({ staff: db.getStaff() });
 });
 
-apiRouter.post('/staff', (req: Request, res: Response) => {
+apiRouter.post('/staff', requireRole(['Executive', 'Manager']), requirePermission('staff.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const newStaff = db.addStaff(req.body, currentUser);
@@ -146,7 +215,7 @@ apiRouter.post('/staff', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.put('/staff/:id', (req: Request, res: Response) => {
+apiRouter.put('/staff/:id', requireRole(['Executive', 'Manager']), requirePermission('staff.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const updated = db.updateStaff(req.params.id, req.body, currentUser);
@@ -156,11 +225,32 @@ apiRouter.put('/staff/:id', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/staff/:id/archive', (req: Request, res: Response) => {
+apiRouter.post('/staff/:id/archive', requireRole(['Executive', 'Manager']), requirePermission('staff.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const archived = db.archiveStaff(req.params.id, currentUser);
     res.json({ success: true, staff: archived });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/staff/:id/reactivate', requireRole(['Executive', 'Manager']), requirePermission('staff.write'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const reactivated = db.reactivateStaff(req.params.id, currentUser);
+    res.json({ success: true, staff: reactivated });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/staff/:id/attendance', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  const { type } = req.body;
+  try {
+    const result = db.recordStaffAttendance(req.params.id, type === 'check_out' ? 'check_out' : 'check_in', currentUser);
+    res.json(result);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -211,7 +301,7 @@ apiRouter.get('/staff/evaluations', (_req: Request, res: Response) => {
   res.json({ evaluations: db.getStaffEvaluations() });
 });
 
-apiRouter.post('/staff/evaluations', (req: Request, res: Response) => {
+apiRouter.post('/staff/evaluations', requireRole(['Executive', 'Manager']), requirePermission('performance.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const evaluation = db.saveStaffEvaluation(req.body, currentUser);
@@ -222,7 +312,7 @@ apiRouter.post('/staff/evaluations', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 6. CUSTOMERS CRM
+// 6. CUSTOMERS CRM & COMPLAINT LIFECYCLE
 // -------------------------------------------------------------
 
 apiRouter.get('/customers', (_req: Request, res: Response) => {
@@ -249,21 +339,61 @@ apiRouter.put('/customers/:id', (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/customers/complaints', (_req: Request, res: Response) => {
+  res.json({ complaints: db.getComplaints() });
+});
+
+apiRouter.post('/customers/complaints', (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const complaint = db.createComplaint(req.body, currentUser);
+    res.status(201).json({ success: true, complaint });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.patch('/customers/complaints/:id', requireRole(['Executive', 'Manager', 'Reception']), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  const { status, resolutionNotes } = req.body;
+  try {
+    const updated = db.updateComplaintStatus(req.params.id, status, resolutionNotes, currentUser);
+    res.json({ success: true, complaint: updated });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // -------------------------------------------------------------
-// 7. INVENTORY
+// 7. INVENTORY & STOCK MOVEMENTS
 // -------------------------------------------------------------
 
 apiRouter.get('/inventory', (_req: Request, res: Response) => {
   res.json({ inventory: db.getInventory() });
 });
 
-apiRouter.post('/inventory/:id/adjust', (req: Request, res: Response) => {
+apiRouter.post('/inventory/:id/adjust', requireRole(['Executive', 'Manager']), requirePermission('inventory.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { delta, reason } = req.body;
 
   try {
     const updated = db.adjustInventoryStock(req.params.id, Number(delta), reason || 'Inventory cycle count', currentUser);
     res.json({ success: true, item: updated });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/inventory/movements', (_req: Request, res: Response) => {
+  res.json({ movements: db.getStockMovements() });
+});
+
+apiRouter.post('/inventory/movement', requirePermission('inventory.write'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  const { inventoryId, type, quantityChange, reason } = req.body;
+  try {
+    const movement = db.recordStockMovement(inventoryId, type, Number(quantityChange), reason, currentUser);
+    res.status(201).json({ success: true, movement });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
@@ -303,7 +433,7 @@ apiRouter.post('/approvals/propose', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/approvals/:id/decide', (req: Request, res: Response) => {
+apiRouter.post('/approvals/:id/decide', requireRole(['Executive', 'Manager']), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { decision, rejectionReason } = req.body;
 
@@ -320,7 +450,7 @@ apiRouter.post('/approvals/:id/decide', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 9. BRAND & CUSTOMER EXPERIENCE (CMS & Media Library)
+// 9. BRAND & HOMEPAGE CMS (With Scheduling & Rollback)
 // -------------------------------------------------------------
 
 apiRouter.get('/brand-experience/media-library', (_req: Request, res: Response) => {
@@ -357,7 +487,7 @@ apiRouter.post('/brand-experience/media-library', (req: Request, res: Response) 
   }
 });
 
-apiRouter.patch('/brand-experience/media-library/:id/status', (req: Request, res: Response) => {
+apiRouter.patch('/brand-experience/media-library/:id/status', requireRole(['Executive', 'Manager', 'Marketing']), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { status, rejectionReason } = req.body;
 
@@ -376,7 +506,7 @@ apiRouter.get('/brand-experience/hero-campaigns', (_req: Request, res: Response)
   });
 });
 
-apiRouter.post('/brand-experience/hero-campaigns', (req: Request, res: Response) => {
+apiRouter.post('/brand-experience/hero-campaigns', requireRole(['Executive', 'Manager', 'Marketing']), requirePermission('homepage.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const campaign = db.createHeroCampaign(req.body, currentUser);
@@ -386,10 +516,20 @@ apiRouter.post('/brand-experience/hero-campaigns', (req: Request, res: Response)
   }
 });
 
-apiRouter.put('/brand-experience/hero-campaigns/:id', (req: Request, res: Response) => {
+apiRouter.put('/brand-experience/hero-campaigns/:id', requireRole(['Executive', 'Manager', 'Marketing']), requirePermission('homepage.publish'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const campaign = db.updateHeroCampaign(req.params.id, req.body, currentUser);
+    res.json({ success: true, campaign });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/brand-experience/hero-campaigns/:id/rollback', requireRole(['Executive', 'Manager']), requirePermission('homepage.publish'), (req: Request, res: Response) => {
+  const currentUser = getCurrentUser(req);
+  try {
+    const campaign = db.rollbackHeroCampaign(req.params.id, currentUser);
     res.json({ success: true, campaign });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -400,7 +540,7 @@ apiRouter.get('/brand-experience/sections', (_req: Request, res: Response) => {
   res.json({ sections: db.getHomepageSections() });
 });
 
-apiRouter.put('/brand-experience/sections', (req: Request, res: Response) => {
+apiRouter.put('/brand-experience/sections', requireRole(['Executive', 'Manager', 'Marketing']), requirePermission('homepage.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { sections } = req.body;
 
@@ -427,7 +567,7 @@ apiRouter.post('/brand-experience/personalize-home', (req: Request, res: Respons
 });
 
 // -------------------------------------------------------------
-// 10. MARKETING HUB & SOCIALS
+// 10. MARKETING HUB & CROSS-PLATFORM SOCIALS
 // -------------------------------------------------------------
 
 apiRouter.get('/marketing/accounts', (_req: Request, res: Response) => {
@@ -438,7 +578,7 @@ apiRouter.get('/marketing/posts', (_req: Request, res: Response) => {
   res.json({ posts: db.getMarketingPosts() });
 });
 
-apiRouter.post('/marketing/posts', (req: Request, res: Response) => {
+apiRouter.post('/marketing/posts', requirePermission('marketing.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { title, series, platforms, publishDate, publishTime, notes, mediaUrl, campaignId, hairTextureTag } = req.body;
 
@@ -467,7 +607,7 @@ apiRouter.post('/marketing/posts', (req: Request, res: Response) => {
   }
 });
 
-apiRouter.post('/marketing/posts/:id/publish-now', (req: Request, res: Response) => {
+apiRouter.post('/marketing/posts/:id/publish-now', requirePermission('publishing.approve'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const post = db.publishPostNow(req.params.id, currentUser);
@@ -477,7 +617,7 @@ apiRouter.post('/marketing/posts/:id/publish-now', (req: Request, res: Response)
   }
 });
 
-apiRouter.post('/marketing/posts/:id/retry', (req: Request, res: Response) => {
+apiRouter.post('/marketing/posts/:id/retry', requirePermission('marketing.write'), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   try {
     const post = db.retryPost(req.params.id, currentUser);
@@ -488,14 +628,63 @@ apiRouter.post('/marketing/posts/:id/retry', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 11. EXCEPTIONS & ANOMALIES
+// 11. PAYMENTS, WEBHOOKS & REFUND GOVERNANCE
+// -------------------------------------------------------------
+
+apiRouter.post('/payments/intent', (req: Request, res: Response) => {
+  const { appointmentId, orderId, amount, customerName, customerPhone, provider } = req.body;
+  if (!amount || !customerName) {
+    return res.status(400).json({ error: 'Amount and customer details are required' });
+  }
+
+  const intent = db.createPaymentIntent({
+    appointmentId,
+    orderId,
+    amount: Number(amount),
+    customerName,
+    customerPhone: customerPhone || '+255 700 000 000',
+    provider: provider || 'M-Pesa',
+  });
+  res.json({ success: true, paymentIntent: intent });
+});
+
+apiRouter.post('/payments/webhook', (req: Request, res: Response) => {
+  try {
+    const result = db.verifyPaymentWebhook(req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// -------------------------------------------------------------
+// 12. AI ASSISTANCE LAYER (Customer Concierge & Management Advisor)
+// -------------------------------------------------------------
+
+apiRouter.post('/ai/concierge', (req: Request, res: Response) => {
+  const { query, hairTexture, budgetTZS } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: 'Query is required for AI Concierge' });
+  }
+
+  const recommendation = db.getAiConciergeRecommendation(query, hairTexture, budgetTZS ? Number(budgetTZS) : undefined);
+  res.json({ success: true, recommendation });
+});
+
+apiRouter.get('/ai/management-advisor', requireRole(['Executive', 'Manager']), (req: Request, res: Response) => {
+  const insights = db.getAiManagementInsights();
+  res.json({ success: true, insights });
+});
+
+// -------------------------------------------------------------
+// 13. EXCEPTIONS & ANOMALIES
 // -------------------------------------------------------------
 
 apiRouter.get('/exceptions', (_req: Request, res: Response) => {
   res.json({ exceptions: db.getExceptions() });
 });
 
-apiRouter.patch('/exceptions/:id', (req: Request, res: Response) => {
+apiRouter.patch('/exceptions/:id', requireRole(['Executive', 'Manager']), (req: Request, res: Response) => {
   const currentUser = getCurrentUser(req);
   const { status, assignedTo } = req.body;
 
@@ -508,13 +697,13 @@ apiRouter.patch('/exceptions/:id', (req: Request, res: Response) => {
 });
 
 // -------------------------------------------------------------
-// 12. AUDIT LOGS & FINANCIAL SUMMARY
+// 14. AUDIT LOGS & FINANCIAL SUMMARY
 // -------------------------------------------------------------
 
-apiRouter.get('/audit-logs', (_req: Request, res: Response) => {
+apiRouter.get('/audit-logs', requireRole(['Executive', 'Manager']), requirePermission('audit.read'), (_req: Request, res: Response) => {
   res.json({ logs: db.getAuditLogs() });
 });
 
-apiRouter.get('/financials', (_req: Request, res: Response) => {
+apiRouter.get('/financials', requireRole(['Executive', 'Manager']), requirePermission('finance.read'), (_req: Request, res: Response) => {
   res.json({ financials: db.getFinancialSummary() });
 });

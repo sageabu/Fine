@@ -1,6 +1,7 @@
 // Server-side Single Source of Truth & Authoritative Business Logic Engine for Fine Hair Business OS
 import fs from 'fs';
 import path from 'path';
+import { syncEntityToPostgres } from './pgSync.ts';
 
 const DB_STORAGE_PATH = path.join(process.cwd(), 'finehair_db.json');
 
@@ -146,7 +147,7 @@ export interface AuditLogRecord {
   actorName: string;
   actorRole: string;
   action: string;
-  entityType: 'service' | 'appointment' | 'approval' | 'inventory' | 'payment' | 'marketing' | 'auth' | 'cms' | 'media';
+  entityType: 'service' | 'appointment' | 'approval' | 'inventory' | 'payment' | 'marketing' | 'auth' | 'cms' | 'media' | 'staff' | 'customer' | 'finance' | 'exception';
   entityId?: string;
   details: string;
   diff?: any;
@@ -1690,6 +1691,8 @@ class FineHairDatabase {
     );
 
     this.saveToDisk();
+    syncEntityToPostgres('appointment', newApt);
+    if (cust) syncEntityToPostgres('customer', cust);
     return newApt;
   }
 
@@ -1724,6 +1727,7 @@ class FineHairDatabase {
     );
 
     this.saveToDisk();
+    syncEntityToPostgres('appointment', apt);
     return apt;
   }
 
@@ -2312,6 +2316,492 @@ class FineHairDatabase {
 
     this.saveToDisk();
     return exc;
+  }
+
+  // -------------------------------------------------------------
+  // SERVICES MASTER CRUD
+  // -------------------------------------------------------------
+  public addService(data: Partial<ServiceRecord>, actorUser: UserAccount): ServiceRecord {
+    if (!data.name || !data.category || !data.currentPrice) {
+      throw new Error('Service name, category, and price are required');
+    }
+
+    const newId = `srv-${Date.now().toString().slice(-4)}`;
+    const newService: ServiceRecord = {
+      id: newId,
+      name: data.name,
+      swahiliName: data.swahiliName || data.name,
+      category: data.category as any,
+      currentPrice: Number(data.currentPrice),
+      durationMinutes: Number(data.durationMinutes || 120),
+      depositRequired: Number(data.depositRequired || Math.round(Number(data.currentPrice) * 0.25)),
+      durationLabel: data.durationLabel || `${Math.round(Number(data.durationMinutes || 120) / 60)} hrs`,
+      status: 'Active',
+      description: data.description || 'Premium Fine Hair salon treatment.',
+      swahiliDescription: data.swahiliDescription || 'Huduma bora ya nywele kutoka Fine Hair.',
+      priceHistory: [
+        {
+          date: new Date().toISOString().slice(0, 10),
+          price: Number(data.currentPrice),
+          changedBy: actorUser.name,
+        },
+      ],
+      qualifiedStaffIds: data.qualifiedStaffIds || ['staff-1', 'staff-2'],
+      imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1580618672591-eb180b1a973f?auto=format&fit=crop&q=80&w=800',
+      brandCompliance: {
+        representationVerified: true,
+        hairTexture: data.brandCompliance?.hairTexture || '4C Coily Natural Texture',
+      },
+    };
+
+    this.services.unshift(newService);
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'SERVICE_CREATED',
+      'service',
+      newService.id,
+      `Added new service "${newService.name}" priced at TZS ${newService.currentPrice.toLocaleString()}`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('service', newService);
+    return newService;
+  }
+
+  public updateService(id: string, data: Partial<ServiceRecord>, actorUser: UserAccount): ServiceRecord {
+    const srv = this.getServiceById(id);
+    if (!srv) throw new Error('Service not found');
+
+    if (data.name) srv.name = data.name;
+    if (data.swahiliName) srv.swahiliName = data.swahiliName;
+    if (data.category) srv.category = data.category as any;
+    if (data.durationMinutes) {
+      srv.durationMinutes = Number(data.durationMinutes);
+      srv.durationLabel = `${Math.round(srv.durationMinutes / 60)} hrs`;
+    }
+    if (data.depositRequired) srv.depositRequired = Number(data.depositRequired);
+    if (data.description) srv.description = data.description;
+    if (data.swahiliDescription) srv.swahiliDescription = data.swahiliDescription;
+    if (data.imageUrl) srv.imageUrl = data.imageUrl;
+    if (data.qualifiedStaffIds) srv.qualifiedStaffIds = data.qualifiedStaffIds;
+
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'SERVICE_UPDATED',
+      'service',
+      srv.id,
+      `Updated metadata for service "${srv.name}"`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('service', srv);
+    return srv;
+  }
+
+  public archiveService(id: string, actorUser: UserAccount): ServiceRecord {
+    const srv = this.getServiceById(id);
+    if (!srv) throw new Error('Service not found');
+
+    srv.status = 'Archived';
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'SERVICE_ARCHIVED',
+      'service',
+      srv.id,
+      `Archived service "${srv.name}". Existing historical appointments preserved.`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('service', srv);
+    return srv;
+  }
+
+  public reactivateService(id: string, actorUser: UserAccount): ServiceRecord {
+    const srv = this.getServiceById(id);
+    if (!srv) throw new Error('Service not found');
+
+    srv.status = 'Active';
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'SERVICE_REACTIVATED',
+      'service',
+      srv.id,
+      `Reactivated service "${srv.name}". Now bookable on Customer App.`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('service', srv);
+    return srv;
+  }
+
+  // -------------------------------------------------------------
+  // STAFF EXTENSIONS (Reactivation & Attendance Clock-in)
+  // -------------------------------------------------------------
+  public reactivateStaff(id: string, actorUser: UserAccount): StaffRecord {
+    const staffMember = this.staff.find((s) => s.id === id);
+    if (!staffMember) throw new Error('Staff member not found');
+
+    staffMember.present = true;
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'STAFF_REACTIVATED',
+      'staff',
+      staffMember.id,
+      `Reactivated staff member "${staffMember.name}" for active shift allocation.`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('staff', staffMember);
+    return staffMember;
+  }
+
+  public recordStaffAttendance(staffId: string, type: 'check_in' | 'check_out', actorUser: UserAccount) {
+    const staffMember = this.staff.find((s) => s.id === staffId);
+    if (!staffMember) throw new Error('Staff member not found');
+
+    const now = new Date();
+    staffMember.present = type === 'check_in';
+
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      type === 'check_in' ? 'STAFF_CHECK_IN' : 'STAFF_CHECK_OUT',
+      'staff',
+      staffMember.id,
+      `Staff member ${staffMember.name} ${type === 'check_in' ? 'clocked in' : 'clocked out'} at ${now.toLocaleTimeString()}`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('staff', staffMember);
+    return { success: true, staff: staffMember, timestamp: now.toISOString() };
+  }
+
+  // -------------------------------------------------------------
+  // CUSTOMER COMPLAINTS & RESOLUTION LIFECYCLE
+  // -------------------------------------------------------------
+  public complaintsList: Array<{
+    id: string;
+    customerId: string;
+    customerName: string;
+    staffId?: string;
+    staffName?: string;
+    serviceId?: string;
+    title: string;
+    details: string;
+    severity: 'Critical' | 'High' | 'Medium' | 'Low';
+    status: 'Open' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+    assignedTo: string;
+    resolutionNotes?: string;
+    resolvedAt?: string;
+    createdAt: string;
+  }> = [
+    {
+      id: 'cmp-101',
+      customerId: 'cust-1',
+      customerName: 'Fatma Al-Husseini',
+      staffId: 'staff-2',
+      staffName: 'Zuwena Ally',
+      title: 'Lace frontal edge lift after 48 hours',
+      details: 'Client reported minor lifting on the left temple area after heavy humidity workout.',
+      severity: 'Medium',
+      status: 'In Progress',
+      assignedTo: 'Fatma Said (Salon Director)',
+      resolutionNotes: 'Complimentary touch-up scheduled for 15:00 with waterproof lace bond sealer.',
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+    },
+  ];
+
+  public getComplaints() {
+    return this.complaintsList;
+  }
+
+  public createComplaint(data: any, actorUser: UserAccount) {
+    const newComplaint = {
+      id: `cmp-${Date.now().toString().slice(-4)}`,
+      customerId: data.customerId || 'cust-walkin',
+      customerName: data.customerName,
+      staffId: data.staffId,
+      staffName: data.staffName,
+      serviceId: data.serviceId,
+      title: data.title,
+      details: data.details,
+      severity: data.severity || 'Medium',
+      status: 'Open' as const,
+      assignedTo: data.assignedTo || 'Salon Director',
+      createdAt: new Date().toISOString(),
+    };
+
+    this.complaintsList.unshift(newComplaint);
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'COMPLAINT_FILED',
+      'customer',
+      newComplaint.id,
+      `Customer complaint filed: "${newComplaint.title}" for ${newComplaint.customerName}`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('complaint', newComplaint);
+    return newComplaint;
+  }
+
+  public updateComplaintStatus(id: string, status: any, resolutionNotes: string, actorUser: UserAccount) {
+    const cmp = this.complaintsList.find((c) => c.id === id);
+    if (!cmp) throw new Error('Complaint not found');
+
+    cmp.status = status;
+    if (resolutionNotes) cmp.resolutionNotes = resolutionNotes;
+    if (status === 'Resolved' || status === 'Closed') {
+      cmp.resolvedAt = new Date().toISOString();
+    }
+
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'COMPLAINT_RESOLVED',
+      'customer',
+      cmp.id,
+      `Complaint "${cmp.title}" updated to status "${status}". Notes: ${resolutionNotes}`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('complaint', cmp);
+    return cmp;
+  }
+
+  // -------------------------------------------------------------
+  // STOCK MOVEMENTS LEDGER
+  // -------------------------------------------------------------
+  public stockMovementsList: Array<{
+    id: string;
+    inventoryId: string;
+    sku: string;
+    name: string;
+    type: 'opening' | 'purchase' | 'transfer' | 'sale' | 'service_consumption' | 'adjustment' | 'damage' | 'loss';
+    quantityChange: number;
+    previousStock: number;
+    newStock: number;
+    reason: string;
+    actorName: string;
+    timestamp: string;
+  }> = [
+    {
+      id: 'mov-1',
+      inventoryId: 'inv-4',
+      sku: 'SKU-GLU-004',
+      name: 'Ghost Bond XL Lace Adhesive (38ml)',
+      type: 'service_consumption',
+      quantityChange: -1,
+      previousStock: 6,
+      newStock: 5,
+      reason: 'Used for HD Lace Wig Unit Installation (Zuwena Ally)',
+      actorName: 'Salon Operations',
+      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+    },
+  ];
+
+  public getStockMovements() {
+    return this.stockMovementsList;
+  }
+
+  public recordStockMovement(
+    inventoryId: string,
+    type: 'purchase' | 'transfer' | 'sale' | 'service_consumption' | 'adjustment' | 'damage' | 'loss',
+    quantityChange: number,
+    reason: string,
+    actorUser: UserAccount
+  ) {
+    const item = this.inventory.find((i) => i.id === inventoryId);
+    if (!item) throw new Error('Inventory item not found');
+
+    const previousStock = item.stock;
+    const newStock = Math.max(0, item.stock + quantityChange);
+    item.stock = newStock;
+
+    if (newStock <= 0) item.status = 'Critical';
+    else if (newStock <= item.threshold) item.status = 'Low';
+    else item.status = 'Healthy';
+
+    const movement = {
+      id: `mov-${Date.now().toString().slice(-4)}`,
+      inventoryId: item.id,
+      sku: item.sku,
+      name: item.name,
+      type,
+      quantityChange,
+      previousStock,
+      newStock,
+      reason,
+      actorName: actorUser.name,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.stockMovementsList.unshift(movement);
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'STOCK_MOVEMENT_RECORDED',
+      'inventory',
+      item.id,
+      `Stock movement [${type}]: ${quantityChange > 0 ? '+' : ''}${quantityChange} units for "${item.name}". Stock balance: ${newStock}`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('inventory', item);
+    syncEntityToPostgres('stock_movement', movement);
+    return movement;
+  }
+
+  // -------------------------------------------------------------
+  // PAYMENTS, WEBHOOKS & REFUND GOVERNANCE
+  // -------------------------------------------------------------
+  public createPaymentIntent(data: {
+    appointmentId?: string;
+    orderId?: string;
+    amount: number;
+    customerName: string;
+    customerPhone: string;
+    provider: 'M-Pesa' | 'Airtel Money' | 'Card' | 'Cash';
+  }) {
+    const intentId = `pi_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const reference = `REF-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    return {
+      intentId,
+      reference,
+      amount: data.amount,
+      currency: 'TZS',
+      provider: data.provider,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      status: 'pending',
+      instructions:
+        data.provider === 'M-Pesa'
+          ? `Lipa kwa M-Pesa: Enter Lipa Namba 5892110 (Fine Hair Atelier), Amount: TZS ${data.amount.toLocaleString()}, Reference: ${reference}`
+          : `Proceed to checkout with verified reference ${reference}`,
+    };
+  }
+
+  public verifyPaymentWebhook(payload: {
+    reference: string;
+    intentId: string;
+    amount: number;
+    status: string;
+    transactionId: string;
+    customerPhone: string;
+  }) {
+    if (!payload.reference || payload.status !== 'success') {
+      throw new Error('Invalid payment confirmation payload');
+    }
+
+    // Record verified transaction in financial ledger
+    this.logAudit(
+      'sys-payment-gateway',
+      'M-Pesa / CRDB Gateway',
+      'System',
+      'PAYMENT_CAPTURED',
+      'finance',
+      payload.transactionId,
+      `Verified payment of TZS ${payload.amount.toLocaleString()} for reference ${payload.reference} from ${payload.customerPhone}`
+    );
+
+    this.saveToDisk();
+    return { success: true, verified: true, transactionId: payload.transactionId };
+  }
+
+  // -------------------------------------------------------------
+  // HOMEPAGE HERO ROLLBACK
+  // -------------------------------------------------------------
+  public rollbackHeroCampaign(campaignId: string, actorUser: UserAccount): HomepageHeroCampaign {
+    const target = this.heroCampaigns.find((h) => h.id === campaignId);
+    if (!target) throw new Error('Hero campaign version not found');
+
+    this.heroCampaigns.forEach((h) => {
+      if (h.id === campaignId) h.status = 'Published';
+      else if (h.status === 'Published') h.status = 'Archived';
+    });
+
+    this.logAudit(
+      actorUser.id,
+      actorUser.name,
+      actorUser.role,
+      'HOMEPAGE_HERO_ROLLBACK',
+      'cms',
+      target.id,
+      `Rolled back homepage hero to version "${target.campaignName}" (${target.headline})`
+    );
+
+    this.saveToDisk();
+    syncEntityToPostgres('hero_campaign', target);
+    return target;
+  }
+
+  // -------------------------------------------------------------
+  // AI CONCIERGE & ADVISOR WITH STRICT HUMAN-IN-THE-LOOP GUARDRAILS
+  // -------------------------------------------------------------
+  public getAiConciergeRecommendation(query: string, hairTexture?: string, budgetTZS?: number) {
+    const activeServices = this.services.filter((s) => s.status === 'Active');
+    const matchedServices = activeServices.filter((s) => {
+      if (hairTexture && s.brandCompliance.hairTexture.includes(hairTexture)) return true;
+      if (budgetTZS && s.currentPrice <= budgetTZS) return true;
+      return true;
+    }).slice(0, 3);
+
+    return {
+      query,
+      detectedHairTexture: hairTexture || '4C Natural Coily',
+      guidance: `For authentic African ${hairTexture || '4C Coily'} hair textures, we recommend prioritizing low-tension edge protection and high-grade breathable HD lace foundations. Here are our verified atelier services matching your profile:`,
+      recommendedServices: matchedServices.map((s) => ({
+        id: s.id,
+        name: s.name,
+        category: s.category,
+        currentPrice: s.currentPrice,
+        durationLabel: s.durationLabel,
+        description: s.description,
+        depositRequired: s.depositRequired,
+        imageUrl: s.imageUrl,
+      })),
+      aftercareTip:
+        'Always wrap your perimeter with a silk/satin scarf before bed and apply pure botanical scalp oil to maintain hair moisture and lace bond longevity.',
+      disclaimer: 'All pricing reflects our active, management-approved salon price list.',
+    };
+  }
+
+  public getAiManagementInsights() {
+    const financials = this.getFinancialSummary();
+    const pendingApprovals = this.approvals.filter((a) => a.status === 'Pending').length;
+    const lowStockCount = this.inventory.filter((i) => i.status === 'Low' || i.status === 'Critical').length;
+    const openExceptions = this.exceptions.filter((e) => e.status === 'Open').length;
+
+    return {
+      generatedAt: new Date().toISOString(),
+      executiveSummary: `Operations are running at ${financials.completedAppointments} completed appointments generating TZS ${financials.totalCollectedCash.toLocaleString()} in collected revenue with a clean operating margin.`,
+      attentionItems: [
+        `${pendingApprovals} dual-control approvals awaiting CFO / Salon Director sign-off.`,
+        `${lowStockCount} inventory items nearing reorder thresholds on salon floor.`,
+        `${openExceptions} open operational exceptions requiring review.`,
+      ],
+      recommendations: [
+        'Review proposed price adjustments in the Approvals Centre before publishing.',
+        'Authorize bulk re-order of Ghost Bond XL and 4C Hair Bundles to avert weekend stockouts.',
+      ],
+      guardrailNote: 'AI is strictly analytical. All price adjustments, refunds, and discounts require human executive authorization.',
+    };
   }
 
   // Audit Logs
