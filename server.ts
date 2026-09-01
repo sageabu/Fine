@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
-import { apiRouter } from "./server/apiRouter.js";
+import { apiRouter } from "./server/apiRouter.ts";
 
 dotenv.config();
 

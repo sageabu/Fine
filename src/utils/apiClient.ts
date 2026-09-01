@@ -846,4 +846,18 @@ export const api = {
   // Audit Logs & Financials
   getAuditLogs: async () => (await request<{ logs: AuditLogRecord[] }>('/audit-logs')).logs,
   getFinancials: async () => (await request<{ financials: FinancialSummary }>('/financials')).financials,
+
+  // Company Settings & Bootstrap
+  getCompanySettings: async () => await request<{ settings: any; branches: any[]; decisionAuthorities: string[]; paymentMethods: string[]; communicationMethods: string[]; socialPlatforms: string[] }>('/settings'),
+  updateCompanySettings: async (settings: any) => await request<{ success: boolean; settings: any }>('/settings', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  }),
+  bootstrapOrganization: async (data: any) => await request<{ success: boolean; message: string }>('/bootstrap', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  // Automated Security Test Suite (PART 55)
+  runSecurityTestSuite: async () => await request<any>('/security/test-suite'),
 };
