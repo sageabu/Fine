@@ -84,8 +84,8 @@ export const ShopView: React.FC<ShopViewProps> = ({
 
   // Modal active product helpers
   const currentModalVariant =
-    selectedProduct?.variants.find((v) => v.length === activeLengthVariant) ||
-    selectedProduct?.variants[0];
+    selectedProduct?.variants?.find((v) => v.length === activeLengthVariant) ||
+    selectedProduct?.variants?.[0];
   const currentPrice = currentModalVariant?.price || selectedProduct?.basePrice || 0;
   const isOutOfStock = (selectedProduct?.availableQuantity ?? 0) === 0 || (currentModalVariant?.stock ?? 0) === 0;
 
@@ -221,13 +221,13 @@ export const ShopView: React.FC<ShopViewProps> = ({
                   {/* Image */}
                   <div
                     onClick={() => {
-                      setActiveLengthVariant(product.variants[0]?.length || '');
+                      setActiveLengthVariant(product.variants?.[0]?.length || '');
                       onSelectProduct(product);
                     }}
                     className="relative aspect-4/3 bg-[#F7F7F7] overflow-hidden cursor-pointer"
                   >
                     <img
-                      src={product.images[0]}
+                      src={product.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'}
                       alt={product.name}
                       className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                       referrerPolicy="no-referrer"
@@ -337,7 +337,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
               <div className="space-y-3">
                 <div className="aspect-square bg-[#F7F7F7] rounded-xl overflow-hidden border border-[#EAEAEA] relative">
                   <img
-                    src={selectedProduct.images[0]}
+                    src={selectedProduct.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'}
                     alt={selectedProduct.name}
                     className="w-full h-full object-cover object-center"
                     referrerPolicy="no-referrer"
@@ -350,7 +350,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     </div>
                   )}
                 </div>
-                {selectedProduct.images[1] && (
+                {selectedProduct.images?.[1] && (
                   <div className="grid grid-cols-2 gap-2">
                     <img
                       src={selectedProduct.images[1]}
@@ -396,7 +396,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                 </div>
 
                 {/* Length Variant Selector */}
-                {selectedProduct.variants.length > 0 && (
+                {selectedProduct.variants && selectedProduct.variants.length > 0 && (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-[#111]">Select Specification / Variant:</span>
@@ -453,7 +453,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     <button
                       disabled={isOutOfStock}
                       onClick={() => {
-                        const len = activeLengthVariant || selectedProduct.variants[0]?.length || 'Standard';
+                        const len = activeLengthVariant || selectedProduct.variants?.[0]?.length || 'Standard';
                         onAddToCart(selectedProduct, len);
                         onCloseProductModal();
                       }}
@@ -470,7 +470,7 @@ export const ShopView: React.FC<ShopViewProps> = ({
                     <a
                       href={generateWhatsAppLink(
                         '+255754892110',
-                        `Habari Fine Hair Mikocheni B! Naulizia kuhusu "${selectedProduct.name}" (SKU: ${selectedProduct.sku}, Variant: ${activeLengthVariant || selectedProduct.variants[0]?.length || 'Default'}). ${isOutOfStock ? 'Lini itafika stoo tena?' : 'Iko tayari kwa delivery leo?'}`
+                        `Habari Fine Hair Mikocheni B! Naulizia kuhusu "${selectedProduct.name}" (SKU: ${selectedProduct.sku}, Variant: ${activeLengthVariant || selectedProduct.variants?.[0]?.length || 'Default'}). ${isOutOfStock ? 'Lini itafika stoo tena?' : 'Iko tayari kwa delivery leo?'}`
                       )}
                       target="_blank"
                       rel="noopener noreferrer"

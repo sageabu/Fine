@@ -4,12 +4,47 @@ export interface UserAccount {
   id: string;
   name: string;
   email: string;
-  role: 'Executive' | 'Manager' | 'Staff' | 'Reception' | 'Marketing' | 'Customer';
-  pin: string;
+  phone?: string;
+  role: 'Executive' | 'Manager' | 'Staff' | 'Reception' | 'Marketing' | 'Customer' | 'Supervisor' | 'Admin' | 'Stylist' | 'Colorist' | 'Trichologist' | 'System Admin';
+  status: 'Active' | 'Suspended' | 'Archived' | 'Pending_Verification' | 'Pending Invitation' | 'Locked';
+  mfaEnabled: boolean;
   staffId?: string;
+  staffProfileId?: string;
   title: string;
   avatar: string;
+  branchId?: string;
+  department?: string;
   permissions: string[];
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SessionRecord {
+  id: string;
+  token: string;
+  userId: string;
+  userRole: UserAccount['role'];
+  userEmail: string;
+  status: 'active' | 'revoked' | 'expired';
+  ipAddress?: string;
+  userAgent?: string;
+  expiresAt: string;
+  createdAt: string;
+  lastActivityAt: string;
+}
+
+export interface SecurityEventRecord {
+  id: string;
+  timestamp: string;
+  userId?: string;
+  userEmail?: string;
+  userRole?: string;
+  eventType: string;
+  ipAddress?: string;
+  userAgent?: string;
+  details: string;
+  severity: 'info' | 'warning' | 'critical';
 }
 
 export interface ServiceRecord {
@@ -322,19 +357,75 @@ export interface ExceptionRecord {
 }
 
 // Current active session tracking in browser
-let activeUserId = 'usr-cfo';
+let activeToken = typeof window !== 'undefined' ? sessionStorage.getItem('finehair_token') || '' : '';
+let currentUserCache: UserAccount | null = null;
+let currentSessionCache: SessionRecord | null = null;
 
-export const setApiActiveUser = (userId: string) => {
-  activeUserId = userId;
+export const setApiActiveSession = (token: string, user: UserAccount, session?: SessionRecord) => {
+  activeToken = token;
+  currentUserCache = user;
+  if (session) currentSessionCache = session;
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('finehair_token', token);
+    sessionStorage.setItem('finehair_user', JSON.stringify(user));
+    if (session) sessionStorage.setItem('finehair_session', JSON.stringify(session));
+  }
 };
 
-export const getApiActiveUserId = () => activeUserId;
+export const getApiActiveToken = () => activeToken;
+
+export const getStoredUser = (): UserAccount | null => {
+  if (currentUserCache) return currentUserCache;
+  if (typeof window !== 'undefined') {
+    const raw = sessionStorage.getItem('finehair_user');
+    if (raw) {
+      try {
+        currentUserCache = JSON.parse(raw);
+        return currentUserCache;
+      } catch {}
+    }
+  }
+  return null;
+};
+
+export const getStoredSession = (): SessionRecord | null => {
+  if (currentSessionCache) return currentSessionCache;
+  if (typeof window !== 'undefined') {
+    const raw = sessionStorage.getItem('finehair_session');
+    if (raw) {
+      try {
+        currentSessionCache = JSON.parse(raw);
+        return currentSessionCache;
+      } catch {}
+    }
+  }
+  return null;
+};
+
+export const clearApiSession = () => {
+  activeToken = '';
+  currentUserCache = null;
+  currentSessionCache = null;
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('finehair_token');
+    sessionStorage.removeItem('finehair_user');
+    sessionStorage.removeItem('finehair_session');
+    sessionStorage.removeItem('finehair_user_id');
+  }
+};
+
+// Legacy bridge for existing callers
+export const setApiActiveUser = (userId: string, token?: string, user?: UserAccount) => {
+  if (token && user) {
+    setApiActiveSession(token, user);
+  }
+};
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const headers = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'x-user-id': activeUserId,
-    ...(options.headers || {}),
+    ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {}),
+    ...(options.headers as Record<string, string> || {}),
   };
 
   const res = await fetch(`/api${endpoint}`, {
@@ -350,12 +441,145 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const api = {
-  // Auth
-  getUsers: async () => (await request<{ users: UserAccount[] }>('/auth/users')).users,
-  login: async (email: string, pin: string) =>
-    await request<{ success: boolean; user: UserAccount }>('/auth/login', {
+  // Enterprise IAM & Authentication
+  loginStaff: async (identifier: string, password: string) =>
+    await request<{
+      success: boolean;
+      requiresMfa?: boolean;
+      challengeId?: string;
+      message?: string;
+      session?: SessionRecord;
+      user?: UserAccount;
+      token?: string;
+    }>('/auth/staff/login', {
       method: 'POST',
-      body: JSON.stringify({ email, pin }),
+      body: JSON.stringify({ identifier, password }),
+    }),
+
+  verifyStaffMfa: async (challengeId: string, code: string) =>
+    await request<{
+      success: boolean;
+      session: SessionRecord;
+      user: UserAccount;
+      token: string;
+    }>('/auth/staff/verify-mfa', {
+      method: 'POST',
+      body: JSON.stringify({ challengeId, code }),
+    }),
+
+  sendCustomerOtp: async (identifier: string, purpose?: string) =>
+    await request<{
+      success: boolean;
+      challengeId: string;
+      expiresAt: string;
+      cooldownSeconds: number;
+      deliveryNotice: string;
+    }>('/auth/customer/send-otp', {
+      method: 'POST',
+      body: JSON.stringify({ identifier, purpose }),
+    }),
+
+  verifyCustomerOtp: async (challengeId: string, code: string) =>
+    await request<{
+      success: boolean;
+      session: SessionRecord;
+      user: UserAccount;
+      customer: CustomerRecord;
+      token: string;
+    }>('/auth/customer/verify-otp', {
+      method: 'POST',
+      body: JSON.stringify({ challengeId, code }),
+    }),
+
+  getMe: async () =>
+    await request<{ success: boolean; user: UserAccount; session: SessionRecord }>('/auth/me'),
+
+  logout: async () => {
+    try {
+      await request<{ success: boolean; message: string }>('/auth/logout', { method: 'POST' });
+    } finally {
+      clearApiSession();
+    }
+  },
+
+  logoutAllDevices: async () => {
+    try {
+      return await request<{ success: boolean; message: string }>('/auth/logout-all', { method: 'POST' });
+    } finally {
+      clearApiSession();
+    }
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string) =>
+    await request<{ success: boolean; message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+
+  inviteStaff: async (invitationData: {
+    email: string;
+    name: string;
+    role: UserAccount['role'];
+    branchId?: string;
+    department?: string;
+    phone?: string;
+    specialties?: string[];
+    commissionRate?: number;
+  }) =>
+    await request<{ success: boolean; invitation: any; activationLink: string }>('/auth/invite-staff', {
+      method: 'POST',
+      body: JSON.stringify(invitationData),
+    }),
+
+  acceptInvitation: async (token: string, password: string) =>
+    await request<{ success: boolean; user: UserAccount; message: string }>('/auth/accept-invitation', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+
+  archiveStaffMember: async (staffId: string, reassignToStaffId?: string, reason?: string) =>
+    await request<{ success: boolean; staff: StaffRecord; reallocatedAppointmentsCount: number }>(
+      `/auth/staff/${staffId}/archive`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reassignToStaffId, reason }),
+      }
+    ),
+
+  reactivateStaffMember: async (staffId: string) =>
+    await request<{ success: boolean; staff: StaffRecord }>(`/auth/staff/${staffId}/reactivate`, {
+      method: 'POST',
+    }),
+
+  suspendUser: async (userId: string, reason?: string) =>
+    await request<{ success: boolean; user: UserAccount }>(`/auth/users/${userId}/suspend`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  updateUserAccess: async (
+    userId: string,
+    data: {
+      role?: UserAccount['role'];
+      permissions?: string[];
+      branchId?: string;
+      department?: string;
+      mfaEnabled?: boolean;
+    }
+  ) =>
+    await request<{ success: boolean; user: UserAccount }>(`/auth/users/${userId}/access`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  getSecurityEvents: async (limit?: number) =>
+    (await request<{ events: SecurityEventRecord[] }>(`/auth/security-events${limit ? `?limit=${limit}` : ''}`)).events,
+
+  getUsers: async () => (await request<{ users: UserAccount[] }>('/auth/users')).users,
+  login: async (email: string, pinOrPass: string) =>
+    await request<{ success: boolean; user: UserAccount; token?: string; session?: SessionRecord }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password: pinOrPass }),
     }),
 
   // Branches
@@ -482,6 +706,7 @@ export const api = {
 
   // Inventory & Stock Movements
   getInventory: async () => (await request<{ inventory: InventoryRecord[] }>('/inventory')).inventory,
+  getProducts: async () => (await request<{ inventory: InventoryRecord[] }>('/inventory')).inventory,
   adjustInventory: async (itemId: string, delta: number, reason: string) =>
     await request<{ success: boolean; item: InventoryRecord }>(`/inventory/${itemId}/adjust`, {
       method: 'POST',

@@ -156,7 +156,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
                 className="w-5 h-5 rounded-full object-cover"
                 referrerPolicy="no-referrer"
               />
-              <span className="truncate">{s.name.split(' ')[0]}</span>
+              <span className="truncate">{s.name?.split(' ')?.[0] || s.name || 'Staff'}</span>
             </button>
           ))}
         </div>

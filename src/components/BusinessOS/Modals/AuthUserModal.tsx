@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { UserAccount, api, setApiActiveUser } from '../../../utils/apiClient';
-import { X, ShieldCheck, Lock, CheckCircle2, User, KeyRound } from 'lucide-react';
+import { UserAccount, api, setApiActiveSession, SessionRecord } from '../../../utils/apiClient';
+import { X, ShieldCheck, Lock, CheckCircle2, KeyRound, Mail, Smartphone, Loader2 } from 'lucide-react';
 
 interface AuthUserModalProps {
   isOpen: boolean;
@@ -15,45 +15,75 @@ export const AuthUserModal: React.FC<AuthUserModalProps> = ({
   onClose,
   onUserAuthenticated,
 }) => {
-  const [users, setUsers] = useState<UserAccount[]>([]);
-  const [selectedUser, setSelectedUser] = useState<UserAccount | null>(currentUser);
-  const [pin, setPin] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState(currentUser?.email || 'director@finehair.co.tz');
+  const [password, setPassword] = useState('');
+  const [mfaChallengeId, setMfaChallengeId] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [step, setStep] = useState<'credentials' | 'mfa'>('credentials');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   React.useEffect(() => {
     if (isOpen) {
-      api.getUsers().then((u) => {
-        setUsers(u);
-        if (!selectedUser && u.length > 0) {
-          setSelectedUser(u[0]);
-        }
-      }).catch(console.error);
-      setPin('');
+      if (currentUser?.email) {
+        setEmailOrPhone(currentUser.email);
+      }
+      setPassword('');
+      setMfaCode('');
+      setStep('credentials');
       setError(null);
     }
-  }, [isOpen]);
+  }, [isOpen, currentUser]);
 
   if (!isOpen) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUser) return;
+    if (!emailOrPhone.trim() || !password) {
+      setError('Please provide your work email/phone and password.');
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      // If user typed PIN or wants one-click fast pass with default pin
-      const pinToUse = pin || selectedUser.pin;
-      const res = await api.login(selectedUser.email, pinToUse);
-      if (res.user) {
-        setApiActiveUser(res.user.id);
+      const res = await api.loginStaff(emailOrPhone.trim(), password);
+      if (res.requiresMfa && res.challengeId) {
+        setMfaChallengeId(res.challengeId);
+        setStep('mfa');
+        setMfaCode('');
+      } else if (res.token && res.user && res.session) {
+        setApiActiveSession(res.token, res.user, res.session);
         onUserAuthenticated(res.user);
         onClose();
       }
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Please verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.length < 6) {
+      setError('Please enter the 6-digit MFA token.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await api.verifyStaffMfa(mfaChallengeId, mfaCode);
+      if (res.token && res.user && res.session) {
+        setApiActiveSession(res.token, res.user, res.session);
+        onUserAuthenticated(res.user);
+        onClose();
+      }
+    } catch (err: any) {
+      setError(err.message || 'MFA token validation failed.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +95,7 @@ export const AuthUserModal: React.FC<AuthUserModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-[#e3dce0] animate-in fade-in zoom-in-95 duration-150"
+        className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-[#e3dce0] animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-4 border-b border-[#e3dce0] mb-4">
@@ -78,7 +108,7 @@ export const AuthUserModal: React.FC<AuthUserModalProps> = ({
                 Access Governance & Permissions
               </span>
               <h2 className="font-serif text-2xl font-semibold text-[#141214]">
-                Switch Authenticated User
+                Enterprise Staff Authentication
               </h2>
             </div>
           </div>
@@ -91,7 +121,7 @@ export const AuthUserModal: React.FC<AuthUserModalProps> = ({
         </div>
 
         <p className="text-xs text-[#716a70] mb-4 leading-relaxed">
-          Fine Hair enforces strict <b>Login → Role → Permissions → Data Access</b> and <b>Segregation of Duties</b>. Employees cannot approve their own price changes, discounts, or refunds.
+          Fine Hair enforces strict <b>Login → Verified Session Token → Authoritative RBAC → Segregation of Duties</b>.
         </p>
 
         {error && (
@@ -100,117 +130,114 @@ export const AuthUserModal: React.FC<AuthUserModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-[#716a70] mb-2 uppercase tracking-wider">
-              Select Salon Professional / Executive Profile
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
-              {users.map((u) => {
-                const isSelected = selectedUser?.id === u.id;
-                return (
-                  <button
-                    type="button"
-                    key={u.id}
-                    onClick={() => {
-                      setSelectedUser(u);
-                      setPin(u.pin);
-                    }}
-                    className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-[#9b627d] bg-[#efe7eb]/40 shadow-xs'
-                        : 'border-[#e3dce0] bg-[#faf9fa] hover:bg-white hover:border-[#ad8d58]'
-                    }`}
-                  >
-                    <img
-                      src={u.avatar}
-                      alt={u.name}
-                      className="w-9 h-9 rounded-full object-cover shrink-0 border border-[#e3dce0]"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-xs text-[#141214] truncate flex items-center justify-between">
-                        <span>{u.name}</span>
-                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-[#9b627d] shrink-0" />}
-                      </div>
-                      <div className="text-[10px] text-[#9b627d] font-medium uppercase tracking-wide">
-                        {u.role}
-                      </div>
-                      <div className="text-[10px] text-[#716a70] truncate mt-0.5">{u.title}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {selectedUser && (
-            <div className="p-3.5 bg-[#fbf9fa] border border-[#e3dce0] rounded-xl space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-[#716a70] font-medium">Authorizations for this role:</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#efe7eb] text-[#9b627d]">
-                  {selectedUser.permissions.length} Permissions Active
-                </span>
+        {step === 'credentials' ? (
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-[#716a70] mb-1.5 uppercase tracking-wider">
+                Work Email or Phone Number
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-[#716a70] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  value={emailOrPhone}
+                  onChange={(e) => setEmailOrPhone(e.target.value)}
+                  placeholder="e.g. director@finehair.co.tz"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#e3dce0] rounded-xl bg-[#faf9fa] focus:bg-white focus:outline-[#9b627d]"
+                />
               </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {selectedUser.permissions.map((perm) => (
-                  <span
-                    key={perm}
-                    className="px-2 py-0.5 rounded-md bg-white border border-[#e3dce0] text-[10px] text-[#141214] font-mono"
-                  >
-                    {perm}
-                  </span>
-                ))}
-              </div>
-              {selectedUser.role === 'Executive' ? (
-                <div className="text-[11px] text-[#2e7d5a] font-medium pt-1">
-                  ✓ Full Executive Authority: Can sign off on service prices, refunds, and financial reconciliations.
-                </div>
-              ) : (
-                <div className="text-[11px] text-[#a46d22] font-medium pt-1">
-                  ⚠️ Segregation of Duties: This role cannot sign off on self-submitted proposals or price edits.
-                </div>
-              )}
             </div>
-          )}
 
-          <div>
-            <label className="block text-xs font-semibold text-[#716a70] mb-1.5 uppercase tracking-wider flex items-center justify-between">
-              <span>Security PIN / Fast Pass</span>
-              <span className="text-[10px] font-normal normal-case text-[#ad8d58]">
-                Auto-filled for selected account
-              </span>
-            </label>
-            <div className="relative">
-              <KeyRound className="w-4 h-4 text-[#716a70] absolute left-3 top-1/2 -translate-y-1/2" />
+            <div>
+              <label className="block text-xs font-semibold text-[#716a70] mb-1.5 uppercase tracking-wider">
+                Cryptographic Password
+              </label>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-[#716a70] absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-[#e3dce0] rounded-xl bg-[#faf9fa] focus:bg-white focus:outline-[#9b627d] font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 rounded-xl border border-[#e3dce0] bg-white text-[#141214] font-medium text-xs hover:bg-[#f6f3f4] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-5 py-2.5 rounded-xl bg-[#141214] text-white font-semibold text-xs hover:bg-[#262226] transition-colors cursor-pointer flex items-center gap-2"
+              >
+                {loading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#ad8d58]" />
+                ) : (
+                  <Lock className="w-3.5 h-3.5 text-[#ad8d58]" />
+                )}
+                <span>{loading ? 'Authenticating...' : 'Sign In & Issue Session'}</span>
+              </button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyMfa} className="space-y-4">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 text-xs text-[#ad8d58] font-bold uppercase tracking-wider">
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Privileged Role Step-Up MFA</span>
+              </div>
+              <h3 className="text-sm font-semibold text-[#141214]">
+                Enter 6-Digit Authenticator Code
+              </h3>
+              <p className="text-xs text-[#716a70]">
+                Executive Suite and Management roles require MFA authorization.
+              </p>
+            </div>
+
+            <div>
               <input
-                type="password"
-                required
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="Enter 4-digit PIN"
-                className="w-full pl-9 pr-3 py-2 text-sm border border-[#e3dce0] rounded-xl bg-[#faf9fa] focus:bg-white focus:outline-[#9b627d] font-mono tracking-widest"
+                type="text"
+                maxLength={6}
+                autoFocus
+                placeholder="123456"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                className="w-full text-center tracking-[0.5em] text-2xl font-mono font-bold py-3 bg-[#faf9fa] border border-[#e3dce0] rounded-xl focus:bg-white focus:outline-[#9b627d]"
               />
             </div>
-          </div>
 
-          <div className="flex justify-end gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl border border-[#e3dce0] bg-white text-[#141214] font-medium text-xs hover:bg-[#f6f3f4] cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-[#141214] text-white font-semibold text-xs hover:bg-[#262226] transition-colors cursor-pointer flex items-center gap-2"
-            >
-              <Lock className="w-3.5 h-3.5 text-[#ad8d58]" />
-              <span>{loading ? 'Authenticating...' : `Authenticate as ${selectedUser?.name || 'User'}`}</span>
-            </button>
-          </div>
-        </form>
+            <div className="flex justify-between items-center pt-2">
+              <button
+                type="button"
+                onClick={() => setStep('credentials')}
+                className="text-xs text-[#716a70] hover:text-black cursor-pointer"
+              >
+                ← Back to Password
+              </button>
+              <button
+                type="submit"
+                disabled={loading || mfaCode.length < 6}
+                className="px-5 py-2.5 rounded-xl bg-[#141214] text-white font-semibold text-xs hover:bg-[#262226] transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#ad8d58]" />
+                ) : (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#25D366]" />
+                )}
+                <span>Verify Token</span>
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

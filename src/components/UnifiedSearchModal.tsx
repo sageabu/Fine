@@ -178,7 +178,7 @@ export const UnifiedSearchModal: React.FC<UnifiedSearchModalProps> = ({
                         className="p-3 bg-[#FAF9F6] hover:bg-[#F5F2EB] rounded-xl border border-[#EAEAEA] flex space-x-3 cursor-pointer transition-all hover:border-[#D4AF37]"
                       >
                         <img
-                          src={product.images[0]}
+                          src={product.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'}
                           alt={product.name}
                           className="w-16 h-16 rounded-lg object-cover shrink-0"
                           referrerPolicy="no-referrer"

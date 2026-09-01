@@ -3,20 +3,83 @@ import { pgTable, serial, text, integer, timestamp, boolean, jsonb, decimal } fr
 import { relations } from 'drizzle-orm';
 
 // -------------------------------------------------------------
-// 1. IDENTITY & USERS
+// 1. IDENTITY & USERS (Enterprise IAM)
 // -------------------------------------------------------------
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
-  uid: text('uid').notNull().unique(), // Firebase Auth UID or system identifier
+  id: text('id').primaryKey(),
   name: text('name').notNull(),
   email: text('email').notNull().unique(),
   phone: text('phone'),
-  role: text('role').notNull().default('Customer'), // Executive, Manager, Reception, Staff, Marketing, Customer
+  role: text('role').notNull().default('Customer'), // Executive, Manager, Reception, Staff, Marketing, Finance, Customer, System Admin
+  status: text('status').notNull().default('Active'), // Active, Pending Invitation, Suspended, Locked, Archived
+  passwordHash: text('password_hash'),
+  passwordSalt: text('password_salt'),
+  mfaEnabled: boolean('mfa_enabled').default(false).notNull(),
+  mfaSecret: text('mfa_secret'),
+  failedLoginAttempts: integer('failed_login_attempts').default(0).notNull(),
+  lockedUntil: timestamp('locked_until'),
   branchId: text('branch_id').default('branch-mikocheni'),
+  department: text('department').default('Salon Atelier'),
+  staffId: text('staff_id'),
   avatar: text('avatar'),
-  pinHash: text('pin_hash'),
+  permissions: jsonb('permissions').$type<string[]>().default([]).notNull(),
+  lastLoginAt: timestamp('last_login_at'),
+  lastLoginIp: text('last_login_ip'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const sessions = pgTable('sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  userRole: text('user_role').notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  mfaVerified: boolean('mfa_verified').default(false).notNull(),
+  revoked: boolean('revoked').default(false).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  lastActivityAt: timestamp('last_activity_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const otpChallenges = pgTable('otp_challenges', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(), // phone or email
+  otpHash: text('otp_hash').notNull(),
+  purpose: text('purpose').notNull(), // customer_auth, mfa_stepup, password_reset
+  attempts: integer('attempts').default(0).notNull(),
+  maxAttempts: integer('max_attempts').default(3).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  verified: boolean('verified').default(false).notNull(),
+  resendCooldownUntil: timestamp('resend_cooldown_until'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const securityEvents = pgTable('security_events', {
+  id: text('id').primaryKey(),
+  userId: text('user_id'),
+  userEmail: text('user_email'),
+  userRole: text('user_role'),
+  eventType: text('event_type').notNull(), // LOGIN_SUCCESS, LOGIN_FAILURE, MFA_REQUIRED, MFA_VERIFIED, LOGOUT, SESSION_REVOKED, STAFF_ARCHIVED, STAFF_INVITED, PERMISSION_CHANGED, BRUTE_FORCE_LOCK, STEPUP_AUTH
+  severity: text('severity').default('info').notNull(), // info, warning, critical
+  ipAddress: text('ip_address'),
+  details: text('details').notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const invitations = pgTable('invitations', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  name: text('name').notNull(),
+  role: text('role').notNull(),
+  branchId: text('branch_id').notNull(),
+  department: text('department').notNull(),
+  token: text('token').notNull().unique(),
+  invitedBy: text('invited_by').notNull(),
+  status: text('status').default('Pending').notNull(), // Pending, Accepted, Expired, Revoked
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 // -------------------------------------------------------------

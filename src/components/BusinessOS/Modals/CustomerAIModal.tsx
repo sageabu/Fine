@@ -175,9 +175,10 @@ export const ApprovalReviewModal: React.FC<ApprovalReviewModalProps> = ({
 
   // Segregation of Duties checks:
   // 1. Employee cannot approve their own submission
+  const currentUserFirstName = currentUser?.name?.split(' ')?.[0]?.toLowerCase() || '';
   const isSelfSubmission = currentUser && (
     (item as any).requestedByUserId === currentUser.id ||
-    item.requestedBy.toLowerCase().includes(currentUser.name.split(' ')[0].toLowerCase())
+    (currentUserFirstName && item.requestedBy?.toLowerCase()?.includes(currentUserFirstName))
   );
   // 2. Only Executive can sign off on price change, refund, or discount
   const hasExecutiveSignoffAuthority = currentUser?.role === 'Executive';

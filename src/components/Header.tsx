@@ -17,14 +17,18 @@ import {
   Layers,
   ChevronRight,
   Eye,
+  KeyRound,
 } from 'lucide-react';
 import { generateWhatsAppLink } from '../utils/formatters';
 import { FineHairLogo } from './FineHairLogo';
+import { UserAccount, SessionRecord } from '../utils/apiClient';
 
 interface HeaderProps {
   currentPerspective: EcosystemPerspective | AppPerspective;
   activeRole: 'customer' | 'staff' | 'management';
   activeStaffMember?: StaffMember;
+  currentUser?: UserAccount | null;
+  currentSession?: SessionRecord | null;
   onSelectPerspective: (perspective: any) => void;
   onOpenRoleAccess: () => void;
   language: Language;
@@ -44,6 +48,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentPerspective,
   activeRole,
   activeStaffMember,
+  currentUser,
+  currentSession,
   onSelectPerspective,
   onOpenRoleAccess,
   language,

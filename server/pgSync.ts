@@ -2,6 +2,10 @@
 import { db } from '../src/db/index.ts';
 import {
   users,
+  sessions,
+  otpChallenges,
+  securityEvents,
+  invitations,
   branches,
   customers,
   services,
@@ -31,6 +35,140 @@ import { eq } from 'drizzle-orm';
 export async function syncEntityToPostgres(entity: string, data: any): Promise<void> {
   try {
     switch (entity) {
+      case 'user':
+        await db
+          .insert(users)
+          .values({
+            id: data.id,
+            name: data.name,
+            email: data.email,
+            phone: data.phone || null,
+            role: data.role,
+            status: data.status || 'Active',
+            passwordHash: data.passwordHash || null,
+            passwordSalt: data.passwordSalt || null,
+            mfaEnabled: data.mfaEnabled || false,
+            mfaSecret: data.mfaSecret || null,
+            failedLoginAttempts: data.failedLoginAttempts || 0,
+            lockedUntil: data.lockedUntil ? new Date(data.lockedUntil) : null,
+            branchId: data.branchId || 'branch-mikocheni',
+            department: data.department || 'Salon Atelier',
+            staffId: data.staffId || null,
+            avatar: data.avatar || null,
+            permissions: data.permissions || [],
+            lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : null,
+            lastLoginIp: data.lastLoginIp || null,
+          })
+          .onConflictDoUpdate({
+            target: users.id,
+            set: {
+              name: data.name,
+              phone: data.phone || null,
+              role: data.role,
+              status: data.status || 'Active',
+              passwordHash: data.passwordHash || null,
+              passwordSalt: data.passwordSalt || null,
+              mfaEnabled: data.mfaEnabled || false,
+              mfaSecret: data.mfaSecret || null,
+              failedLoginAttempts: data.failedLoginAttempts || 0,
+              lockedUntil: data.lockedUntil ? new Date(data.lockedUntil) : null,
+              branchId: data.branchId || 'branch-mikocheni',
+              department: data.department || 'Salon Atelier',
+              staffId: data.staffId || null,
+              avatar: data.avatar || null,
+              permissions: data.permissions || [],
+              lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : null,
+              lastLoginIp: data.lastLoginIp || null,
+              updatedAt: new Date(),
+            },
+          });
+        break;
+
+      case 'session':
+        await db
+          .insert(sessions)
+          .values({
+            id: data.id,
+            userId: data.userId,
+            userRole: data.userRole,
+            ipAddress: data.ipAddress || null,
+            userAgent: data.userAgent || null,
+            mfaVerified: data.mfaVerified || false,
+            revoked: data.revoked || false,
+            expiresAt: new Date(data.expiresAt),
+            lastActivityAt: data.lastActivityAt ? new Date(data.lastActivityAt) : new Date(),
+          })
+          .onConflictDoUpdate({
+            target: sessions.id,
+            set: {
+              mfaVerified: data.mfaVerified || false,
+              revoked: data.revoked || false,
+              lastActivityAt: data.lastActivityAt ? new Date(data.lastActivityAt) : new Date(),
+            },
+          });
+        break;
+
+      case 'security_event':
+        await db.insert(securityEvents).values({
+          id: data.id,
+          userId: data.userId || null,
+          userEmail: data.userEmail || null,
+          userRole: data.userRole || null,
+          eventType: data.eventType,
+          severity: data.severity || 'info',
+          ipAddress: data.ipAddress || null,
+          details: data.details,
+          metadata: data.metadata || null,
+        });
+        break;
+
+      case 'otp_challenge':
+        await db
+          .insert(otpChallenges)
+          .values({
+            id: data.id,
+            identifier: data.identifier,
+            otpHash: data.otpHash,
+            purpose: data.purpose,
+            attempts: data.attempts || 0,
+            maxAttempts: data.maxAttempts || 3,
+            expiresAt: new Date(data.expiresAt),
+            verified: data.verified || false,
+            resendCooldownUntil: data.resendCooldownUntil ? new Date(data.resendCooldownUntil) : null,
+          })
+          .onConflictDoUpdate({
+            target: otpChallenges.id,
+            set: {
+              attempts: data.attempts || 0,
+              verified: data.verified || false,
+              resendCooldownUntil: data.resendCooldownUntil ? new Date(data.resendCooldownUntil) : null,
+            },
+          });
+        break;
+
+      case 'invitation':
+        await db
+          .insert(invitations)
+          .values({
+            id: data.id,
+            email: data.email,
+            name: data.name,
+            role: data.role,
+            branchId: data.branchId,
+            department: data.department,
+            token: data.token,
+            invitedBy: data.invitedBy,
+            status: data.status || 'Pending',
+            expiresAt: new Date(data.expiresAt),
+          })
+          .onConflictDoUpdate({
+            target: invitations.id,
+            set: {
+              status: data.status || 'Pending',
+            },
+          });
+        break;
+
       case 'appointment':
         await db
           .insert(appointments)

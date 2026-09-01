@@ -200,7 +200,7 @@ export const CatalogManager: React.FC<CatalogManagerProps> = ({
                 {/* Product Thumbnail */}
                 <div className="w-20 h-24 rounded-lg bg-[#F5F5F5] overflow-hidden shrink-0 border border-[#EAEAEA] relative">
                   <img
-                    src={prod.images[0]}
+                    src={prod.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'}
                     alt={prod.name}
                     className="w-full h-full object-cover"
                   />
@@ -225,9 +225,9 @@ export const CatalogManager: React.FC<CatalogManagerProps> = ({
 
                   <div className="flex items-center justify-between pt-2 border-t border-[#F5F5F5] text-xs">
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                      (prod.variants[0]?.stock || 0) > 0 ? 'bg-[#25D366]/10 text-[#20BA5A]' : 'bg-red-100 text-red-700'
+                      (prod.variants?.[0]?.stock || 0) > 0 ? 'bg-[#25D366]/10 text-[#20BA5A]' : 'bg-red-100 text-red-700'
                     }`}>
-                      {(prod.variants[0]?.stock || 0) > 0 ? `In Stock (${prod.variants[0]?.stock || 5})` : 'Out of Stock'}
+                      {(prod.variants?.[0]?.stock || 0) > 0 ? `In Stock (${prod.variants?.[0]?.stock || 5})` : 'Out of Stock'}
                     </span>
 
                     <button
@@ -440,12 +440,12 @@ export const CatalogManager: React.FC<CatalogManagerProps> = ({
                 <div>
                   <label className="block text-xs font-semibold text-[#333] mb-1">Stock Status</label>
                   <select
-                    value={(editingProduct.variants[0]?.stock || 0) > 0 ? 'instock' : 'outofstock'}
+                    value={(editingProduct.variants?.[0]?.stock || 0) > 0 ? 'instock' : 'outofstock'}
                     onChange={(e) => {
                       const newStock = e.target.value === 'instock' ? 5 : 0;
                       setEditingProduct({
                         ...editingProduct,
-                        variants: editingProduct.variants.map((v) => ({ ...v, stock: newStock })),
+                        variants: (editingProduct.variants || [{ length: 'Standard', price: editingProduct.basePrice, stock: 5 }]).map((v) => ({ ...v, stock: newStock })),
                       });
                     }}
                     className="w-full bg-[#FAF9F6] border border-[#E0DACE] rounded-xl px-3.5 py-2 text-xs text-[#111] focus:bg-white outline-hidden"
@@ -462,17 +462,17 @@ export const CatalogManager: React.FC<CatalogManagerProps> = ({
                   <input
                     type="url"
                     required
-                    value={editingProduct.images[0] || ''}
+                    value={editingProduct.images?.[0] || ''}
                     onChange={(e) =>
                       setEditingProduct({
                         ...editingProduct,
-                        images: [e.target.value, ...(editingProduct.images.slice(1))],
+                        images: [e.target.value, ...(editingProduct.images?.slice(1) || [])],
                       })
                     }
                     className="flex-1 bg-[#FAF9F6] border border-[#E0DACE] rounded-xl px-3.5 py-2 text-xs text-[#111] focus:bg-white outline-hidden"
                   />
                   <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#E0DACE] shrink-0 bg-[#F5F5F5]">
-                    <img src={editingProduct.images[0]} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={editingProduct.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'} alt="Preview" className="w-full h-full object-cover" />
                   </div>
                 </div>
               </div>

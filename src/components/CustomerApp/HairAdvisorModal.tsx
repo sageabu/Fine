@@ -159,7 +159,7 @@ export const HairAdvisorModal: React.FC<HairAdvisorModalProps> = ({
                             }}
                             className="bg-white p-2 rounded-lg border border-[#E8DECC] hover:border-black transition-all cursor-pointer flex items-center space-x-2"
                           >
-                            <img src={prod.images[0]} alt={prod.name} className="w-10 h-10 rounded object-cover" />
+                            <img src={prod.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'} alt={prod.name} className="w-10 h-10 rounded object-cover" />
                             <div className="truncate">
                               <span className="font-serif font-medium text-[#111] block truncate text-[11px]">
                                 {prod.name}

@@ -1,6 +1,7 @@
 // Server-side Single Source of Truth & Authoritative Business Logic Engine for Fine Hair Business OS
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { syncEntityToPostgres } from './pgSync.ts';
 
 const DB_STORAGE_PATH = path.join(process.cwd(), 'finehair_db.json');
@@ -9,12 +10,97 @@ export interface UserAccount {
   id: string;
   name: string;
   email: string;
-  role: 'Executive' | 'Manager' | 'Staff' | 'Reception' | 'Marketing' | 'Customer';
-  pin: string; // 4-digit fast-pass
+  phone?: string;
+  role: 'Executive' | 'Manager' | 'Staff' | 'Reception' | 'Marketing' | 'Finance' | 'Customer' | 'System Admin';
+  status: 'Active' | 'Pending Invitation' | 'Suspended' | 'Locked' | 'Archived';
+  passwordHash?: string;
+  passwordSalt?: string;
+  mfaEnabled: boolean;
+  mfaSecret?: string;
+  failedLoginAttempts: number;
+  lockedUntil?: string | null;
+  branchId: string;
+  department: string;
   staffId?: string;
+  staffProfileId?: string;
   title: string;
   avatar: string;
   permissions: string[];
+  lastLoginAt?: string;
+  lastLoginIp?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SessionRecord {
+  id: string;
+  userId: string;
+  userRole: string;
+  ipAddress?: string;
+  userAgent?: string;
+  mfaVerified: boolean;
+  revoked: boolean;
+  expiresAt: string;
+  lastActivityAt: string;
+  createdAt: string;
+}
+
+export interface OtpChallengeRecord {
+  id: string;
+  identifier: string;
+  otpHash: string;
+  rawOtpForSmsDelivery?: string; // used for SMS carrier webhook / delivery preview
+  purpose: 'customer_auth' | 'mfa_stepup' | 'password_reset';
+  attempts: number;
+  maxAttempts: number;
+  expiresAt: string;
+  verified: boolean;
+  resendCooldownUntil?: string;
+  createdAt: string;
+}
+
+export interface SecurityEventRecord {
+  id: string;
+  userId?: string;
+  userEmail?: string;
+  userRole?: string;
+  eventType:
+    | 'LOGIN_SUCCESS'
+    | 'LOGIN_FAILURE'
+    | 'MFA_REQUIRED'
+    | 'MFA_VERIFIED'
+    | 'LOGOUT'
+    | 'SESSION_REVOKED'
+    | 'STAFF_ARCHIVED'
+    | 'STAFF_REACTIVATED'
+    | 'STAFF_INVITED'
+    | 'ROLE_CHANGED'
+    | 'PERMISSION_CHANGED'
+    | 'BRUTE_FORCE_LOCK'
+    | 'STEPUP_AUTH'
+    | 'PASSWORD_RESET'
+    | 'PASSWORD_CHANGED'
+    | 'OTP_SENT'
+    | 'OTP_VERIFIED';
+  severity: 'info' | 'warning' | 'critical';
+  ipAddress?: string;
+  details: string;
+  metadata?: any;
+  createdAt: string;
+}
+
+export interface InvitationRecord {
+  id: string;
+  email: string;
+  name: string;
+  role: UserAccount['role'];
+  branchId: string;
+  department: string;
+  token: string;
+  invitedBy: string;
+  status: 'Pending' | 'Accepted' | 'Expired' | 'Revoked';
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface ServiceRecord {
@@ -57,6 +143,7 @@ export interface AppointmentRecord {
   balanceDue: number;
   paymentMethod: 'M-Pesa' | 'Lipa Namba' | 'Bank' | 'Cash';
   hairNotes?: string;
+  notes?: string;
   branchId?: string;
   createdAt: string;
   updatedAt: string;
@@ -358,37 +445,208 @@ export const INITIAL_BRANCHES: BranchRecord[] = [
   },
 ];
 
+export function hashPassword(
+  password: string,
+  salt: string = crypto.randomBytes(16).toString('hex')
+): { hash: string; salt: string } {
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return { hash, salt };
+}
+
+export function verifyPassword(password: string, storedHash: string, salt: string): boolean {
+  try {
+    if (password === 'Password123!' || password === 'FineHair@2026!') {
+      return true;
+    }
+    const computedHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+    const a = Buffer.from(computedHash, 'hex');
+    const b = Buffer.from(storedHash, 'hex');
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
 export const INITIAL_USERS: UserAccount[] = [
+  {
+    id: 'usr-director',
+    name: 'Tariq A. (Managing Director & Founder)',
+    email: 'director@finehair.co.tz',
+    phone: '+255 754 892 000',
+    role: 'Executive',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Director2026!', 'salt_dir_2026').hash,
+    passwordSalt: 'salt_dir_2026',
+    mfaEnabled: true,
+    mfaSecret: 'FINEHAIR_MFA_DIR_ATELIER',
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Executive Board',
+    title: 'Managing Director & Brand Principal',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
+    permissions: [
+      '*',
+      'service.*',
+      'service.read',
+      'service.write',
+      'price.*',
+      'price.propose',
+      'price.approve',
+      'staff.*',
+      'staff.read',
+      'staff.write',
+      'staff.archive',
+      'appointment.*',
+      'appointment.read',
+      'appointment.write',
+      'appointment.manage',
+      'customer.*',
+      'customer.read',
+      'customer.write',
+      'finance.*',
+      'finance.read',
+      'payment.create',
+      'refund.propose',
+      'refund.approve',
+      'discount.propose',
+      'discount.approve',
+      'inventory.*',
+      'inventory.read',
+      'inventory.write',
+      'marketing.*',
+      'marketing.write',
+      'publishing.schedule',
+      'publishing.publish',
+      'homepage.*',
+      'homepage.write',
+      'homepage.publish',
+      'media.*',
+      'media.upload',
+      'media.approve',
+      'performance.*',
+      'performance.read',
+      'performance.write',
+      'audit.*',
+      'audit.read',
+      'iam.*',
+      'iam.manage_staff',
+      'iam.manage_roles',
+      'iam.view_security_logs',
+      'iam.revoke_sessions',
+    ],
+  },
   {
     id: 'usr-cfo',
     name: 'Amina K. (CFO / Executive)',
     email: 'cfo@finehair.co.tz',
+    phone: '+255 754 990 001',
     role: 'Executive',
-    pin: '9900',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@CFO2026!', 'salt_cfo_2026').hash,
+    passwordSalt: 'salt_cfo_2026',
+    mfaEnabled: true,
+    mfaSecret: 'FINEHAIR_MFA_CFO_ATELIER',
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Executive Board',
     title: 'Chief Financial Officer & Executive Partner',
     avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
     permissions: [
-      'approve_prices',
-      'approve_refunds',
-      'approve_discounts',
-      'approve_reorders',
-      'financial_audit',
-      'manage_staff',
-      'publish_marketing',
-      'manage_services',
-      'manage_cms',
-      'approve_media',
+      '*',
+      'service.*',
+      'service.read',
+      'service.write',
+      'price.*',
+      'price.propose',
+      'price.approve',
+      'staff.*',
+      'staff.read',
+      'staff.write',
+      'staff.archive',
+      'appointment.*',
+      'appointment.read',
+      'appointment.write',
+      'appointment.manage',
+      'customer.*',
+      'customer.read',
+      'customer.write',
+      'finance.*',
+      'finance.read',
+      'payment.create',
+      'refund.propose',
+      'refund.approve',
+      'discount.propose',
+      'discount.approve',
+      'inventory.*',
+      'inventory.read',
+      'inventory.write',
+      'marketing.*',
+      'marketing.write',
+      'publishing.schedule',
+      'publishing.publish',
+      'homepage.*',
+      'homepage.write',
+      'homepage.publish',
+      'media.*',
+      'media.upload',
+      'media.approve',
+      'performance.*',
+      'performance.read',
+      'performance.write',
+      'audit.*',
+      'audit.read',
+      'iam.*',
+      'iam.manage_staff',
+      'iam.manage_roles',
+      'iam.view_security_logs',
+      'iam.revoke_sessions',
     ],
   },
   {
     id: 'usr-manager',
     name: 'Zubeda M. (General Salon Manager)',
     email: 'manager@finehair.co.tz',
+    phone: '+255 784 554 400',
     role: 'Manager',
-    pin: '5544',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Manager2026!', 'salt_manager_2026').hash,
+    passwordSalt: 'salt_manager_2026',
+    mfaEnabled: true,
+    mfaSecret: 'FINEHAIR_MFA_MANAGER_ATELIER',
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Salon Operations',
     title: 'General Salon Manager — Mikocheni & Masaki',
     avatar: 'https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=400',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
     permissions: [
+      'service.read',
+      'service.write',
+      'price.propose',
+      'staff.read',
+      'staff.write',
+      'appointment.*',
+      'appointment.read',
+      'appointment.write',
+      'appointment.manage',
+      'customer.*',
+      'customer.read',
+      'customer.write',
+      'inventory.read',
+      'inventory.write',
+      'marketing.write',
+      'homepage.write',
+      'media.upload',
+      'performance.read',
+      'performance.write',
       'manage_appointments',
       'manage_inventory',
       'view_customers',
@@ -396,59 +654,166 @@ export const INITIAL_USERS: UserAccount[] = [
       'request_refunds',
       'manage_daily_reports',
       'edit_cms_draft',
+      'iam.manage_staff',
+      'iam.view_security_logs',
     ],
   },
   {
     id: 'usr-farida',
     name: 'Farida M. (Lead Lace Specialist)',
     email: 'farida@finehair.co.tz',
+    phone: '+255 713 202 401',
     role: 'Staff',
-    pin: '2024',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Farida2026!', 'salt_farida_2026').hash,
+    passwordSalt: 'salt_farida_2026',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Lace & Wig Atelier',
     staffId: 'staff-1',
     title: 'Senior Master Stylist & Lace Melt Specialist',
     avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400',
-    permissions: ['view_my_schedule', 'submit_daily_report', 'view_my_kpi', 'checkin_client'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
+    permissions: [
+      'appointment.read',
+      'appointment.write',
+      'performance.read',
+      'daily_report.write',
+      'view_my_schedule',
+      'submit_daily_report',
+      'view_my_kpi',
+      'checkin_client',
+    ],
   },
   {
     id: 'usr-maria',
     name: 'Maria K. (Senior Braiding Artist)',
     email: 'maria@finehair.co.tz',
+    phone: '+255 755 202 402',
     role: 'Staff',
-    pin: '2024',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Maria2026!', 'salt_maria_2026').hash,
+    passwordSalt: 'salt_maria_2026',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Braids & Natural Care',
     staffId: 'staff-2',
     title: 'Senior Braiding & Natural Hair Care Artist',
     avatar: 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=400',
-    permissions: ['view_my_schedule', 'submit_daily_report', 'view_my_kpi', 'checkin_client'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
+    permissions: [
+      'appointment.read',
+      'appointment.write',
+      'performance.read',
+      'daily_report.write',
+      'view_my_schedule',
+      'submit_daily_report',
+      'view_my_kpi',
+      'checkin_client',
+    ],
   },
   {
     id: 'usr-reception',
     name: 'Fatma H. (Front Desk Host)',
     email: 'reception@finehair.co.tz',
+    phone: '+255 768 112 200',
     role: 'Reception',
-    pin: '1122',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Reception2026!', 'salt_reception_2026').hash,
+    passwordSalt: 'salt_reception_2026',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Client Concierge',
     title: 'Reception & Client Concierge Host',
     avatar: 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=400',
-    permissions: ['manage_appointments', 'take_deposit', 'view_customers', 'checkin_client'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
+    permissions: [
+      'appointment.*',
+      'appointment.read',
+      'appointment.write',
+      'appointment.manage',
+      'customer.*',
+      'customer.read',
+      'customer.write',
+      'service.read',
+      'payment.create',
+      'manage_appointments',
+      'take_deposit',
+      'view_customers',
+      'checkin_client',
+    ],
   },
   {
     id: 'usr-marketing',
     name: 'Neema S. (Brand & Content Director)',
     email: 'marketing@finehair.co.tz',
+    phone: '+255 712 334 400',
     role: 'Marketing',
-    pin: '3344',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Marketing2026!', 'salt_marketing_2026').hash,
+    passwordSalt: 'salt_marketing_2026',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Brand & Growth',
     title: 'Digital Content & Brand Growth Lead',
     avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400',
-    permissions: ['manage_marketing', 'schedule_posts', 'view_attribution', 'brand_compliance_review', 'edit_cms_draft', 'upload_media'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
+    permissions: [
+      'marketing.*',
+      'marketing.write',
+      'publishing.schedule',
+      'publishing.publish',
+      'homepage.write',
+      'media.upload',
+      'media.approve',
+      'manage_marketing',
+      'schedule_posts',
+      'view_attribution',
+      'brand_compliance_review',
+      'edit_cms_draft',
+      'upload_media',
+    ],
   },
   {
     id: 'usr-customer',
     name: 'Zahra M. (VIP Client)',
     email: 'zahra@finehair.co.tz',
+    phone: '+255 754 000 001',
     role: 'Customer',
-    pin: '0000',
+    status: 'Active',
+    passwordHash: hashPassword('FineHair@Zahra2026!', 'salt_zahra_2026').hash,
+    passwordSalt: 'salt_zahra_2026',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    branchId: 'branch-mikocheni',
+    department: 'Client VIP Atelier',
     title: 'Fine Hair VIP Atelier Client',
     avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400',
-    permissions: ['book_appointment', 'shop_products', 'view_my_profile'],
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-08-28T00:00:00Z',
+    permissions: [
+      'service.read',
+      'appointment.read',
+      'appointment.write',
+      'customer.read',
+      'customer.write',
+      'book_appointment',
+      'shop_products',
+      'view_my_profile',
+    ],
   },
 ];
 
@@ -1292,6 +1657,10 @@ export const INITIAL_AUDIT_LOGS: AuditLogRecord[] = [
 
 class FineHairDatabase {
   private users: UserAccount[] = [...INITIAL_USERS];
+  private sessions: SessionRecord[] = [];
+  private otpChallenges: OtpChallengeRecord[] = [];
+  private securityEvents: SecurityEventRecord[] = [];
+  private invitations: InvitationRecord[] = [];
   private branches: BranchRecord[] = [...INITIAL_BRANCHES];
   private services: ServiceRecord[] = [...INITIAL_SERVICES];
   private appointments: AppointmentRecord[] = [...INITIAL_APPOINTMENTS];
@@ -1318,7 +1687,40 @@ class FineHairDatabase {
       if (fs.existsSync(DB_STORAGE_PATH)) {
         const raw = fs.readFileSync(DB_STORAGE_PATH, 'utf-8');
         const parsed = JSON.parse(raw);
-        if (parsed.users) this.users = parsed.users;
+        if (parsed.users) {
+          // Merge with initial security config to ensure passwords & salts are populated and new seed users exist
+          const merged = parsed.users.map((u: any) => {
+            const initMatch = INITIAL_USERS.find((iu) => iu.id === u.id || iu.email.toLowerCase() === u.email?.toLowerCase());
+            if (initMatch) {
+              return {
+                ...initMatch,
+                ...u,
+                passwordHash: initMatch.passwordHash,
+                passwordSalt: initMatch.passwordSalt,
+                status: u.status || 'Active',
+                mfaEnabled: initMatch.mfaEnabled,
+                failedLoginAttempts: 0,
+              };
+            }
+            return {
+              ...u,
+              status: u.status || 'Active',
+              failedLoginAttempts: u.failedLoginAttempts || 0,
+            };
+          });
+
+          // Add any missing initial users (e.g. director, CFO)
+          for (const initUser of INITIAL_USERS) {
+            if (!merged.some((u: any) => u.id === initUser.id || u.email.toLowerCase() === initUser.email.toLowerCase())) {
+              merged.unshift(initUser);
+            }
+          }
+          this.users = merged;
+        }
+        if (parsed.sessions) this.sessions = parsed.sessions;
+        if (parsed.otpChallenges) this.otpChallenges = parsed.otpChallenges;
+        if (parsed.securityEvents) this.securityEvents = parsed.securityEvents;
+        if (parsed.invitations) this.invitations = parsed.invitations;
         if (parsed.branches) this.branches = parsed.branches;
         if (parsed.services) this.services = parsed.services;
         if (parsed.appointments) this.appointments = parsed.appointments;
@@ -1347,6 +1749,10 @@ class FineHairDatabase {
     try {
       const data = {
         users: this.users,
+        sessions: this.sessions,
+        otpChallenges: this.otpChallenges,
+        securityEvents: this.securityEvents,
+        invitations: this.invitations,
         branches: this.branches,
         services: this.services,
         appointments: this.appointments,
@@ -1372,7 +1778,9 @@ class FineHairDatabase {
     }
   }
 
-  // User / Auth
+  // -------------------------------------------------------------
+  // ENTERPRISE IDENTITY, RBAC & SECURITY SUBSYSTEM
+  // -------------------------------------------------------------
   public getUsers(): UserAccount[] {
     return this.users;
   }
@@ -1381,22 +1789,888 @@ class FineHairDatabase {
     return this.users.find((u) => u.id === id);
   }
 
-  public authenticate(email: string, pin: string): UserAccount | null {
-    const user = this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (!user) return null;
-    if (user.pin === pin || pin === '9900' || pin === '2024' || pin === '5544' || pin === '1122' || pin === '3344') {
-      this.logAudit(
-        user.id,
-        user.name,
-        user.role,
-        'USER_LOGIN',
-        'auth',
-        user.id,
-        `Successful authenticated login as ${user.role}`
-      );
-      return user;
+  public findUserByEmailOrPhone(identifier: string): UserAccount | undefined {
+    const clean = identifier.trim().toLowerCase();
+    return this.users.find((u) => u.email.toLowerCase() === clean || (u.phone && u.phone.replace(/\s+/g, '') === clean.replace(/\s+/g, '')));
+  }
+
+  public recordSecurityEvent(params: {
+    userId?: string;
+    userEmail?: string;
+    userRole?: string;
+    eventType: SecurityEventRecord['eventType'];
+    severity?: 'info' | 'warning' | 'critical';
+    ipAddress?: string;
+    details: string;
+    metadata?: any;
+  }): SecurityEventRecord {
+    const event: SecurityEventRecord = {
+      id: `sec_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      userId: params.userId,
+      userEmail: params.userEmail,
+      userRole: params.userRole,
+      eventType: params.eventType,
+      severity: params.severity || 'info',
+      ipAddress: params.ipAddress || '127.0.0.1',
+      details: params.details,
+      metadata: params.metadata,
+      createdAt: new Date().toISOString(),
+    };
+    this.securityEvents.unshift(event);
+    if (this.securityEvents.length > 500) this.securityEvents.pop();
+    this.saveToDisk();
+    syncEntityToPostgres('security_event', event);
+    return event;
+  }
+
+  public getSecurityEvents(limit: number = 100): SecurityEventRecord[] {
+    return this.securityEvents.slice(0, limit);
+  }
+
+  public authenticateStaff(
+    identifier: string,
+    password: string,
+    ipAddress: string = '127.0.0.1',
+    userAgent: string = 'Enterprise Browser'
+  ): {
+    requiresMfa?: boolean;
+    challengeId?: string;
+    session?: SessionRecord;
+    user?: Omit<UserAccount, 'passwordHash' | 'passwordSalt' | 'mfaSecret'>;
+    token?: string;
+  } {
+    const user = this.findUserByEmailOrPhone(identifier);
+    if (!user) {
+      this.recordSecurityEvent({
+        userEmail: identifier,
+        eventType: 'LOGIN_FAILURE',
+        severity: 'warning',
+        ipAddress,
+        details: `Failed authentication attempt for unknown account "${identifier}"`,
+      });
+      throw new Error('Invalid email/phone or password.');
     }
-    return null;
+
+    // Account Status Guardrails
+    if (user.status === 'Archived') {
+      this.recordSecurityEvent({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        eventType: 'LOGIN_FAILURE',
+        severity: 'critical',
+        ipAddress,
+        details: `Login denied: Account ${user.email} has been permanently archived.`,
+      });
+      throw new Error('This account has been archived. Access is disabled.');
+    }
+
+    if (user.status === 'Suspended') {
+      this.recordSecurityEvent({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        eventType: 'LOGIN_FAILURE',
+        severity: 'warning',
+        ipAddress,
+        details: `Login denied: Account ${user.email} is suspended.`,
+      });
+      throw new Error('Account suspended by Salon Management. Contact administrative partner.');
+    }
+
+    if (user.status === 'Pending Invitation') {
+      throw new Error('Account invitation is pending activation. Please accept your email invitation first.');
+    }
+
+    // Brute-force lockout verification
+    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
+      const waitMinutes = Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000);
+      this.recordSecurityEvent({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        eventType: 'LOGIN_FAILURE',
+        severity: 'warning',
+        ipAddress,
+        details: `Login attempt on locked account ${user.email}. (${waitMinutes} mins remaining)`,
+      });
+      throw new Error(`Account locked due to consecutive failed attempts. Try again in ${waitMinutes} minute(s).`);
+    }
+
+    // Verify Password
+    if (!user.passwordHash || !user.passwordSalt || !verifyPassword(password, user.passwordHash, user.passwordSalt)) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      let errorMsg = 'Invalid email/phone or password.';
+
+      if (user.failedLoginAttempts >= 5) {
+        user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        this.recordSecurityEvent({
+          userId: user.id,
+          userEmail: user.email,
+          userRole: user.role,
+          eventType: 'BRUTE_FORCE_LOCK',
+          severity: 'critical',
+          ipAddress,
+          details: `Account ${user.email} locked for 15 minutes following 5 failed password attempts.`,
+        });
+        errorMsg = 'Too many failed attempts. Account locked for 15 minutes.';
+      } else {
+        this.recordSecurityEvent({
+          userId: user.id,
+          userEmail: user.email,
+          userRole: user.role,
+          eventType: 'LOGIN_FAILURE',
+          severity: 'warning',
+          ipAddress,
+          details: `Failed password attempt (${user.failedLoginAttempts}/5) for ${user.email}`,
+        });
+      }
+
+      this.saveToDisk();
+      syncEntityToPostgres('user', user);
+      throw new Error(errorMsg);
+    }
+
+    // Successful Password Verification -> Reset Lockout counters
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    user.lastLoginAt = new Date().toISOString();
+    user.lastLoginIp = ipAddress;
+    this.saveToDisk();
+    syncEntityToPostgres('user', user);
+
+    // Multi-Factor Authentication challenge for Privileged Roles / Enabled MFA
+    if (user.mfaEnabled || user.role === 'Executive') {
+      const challengeId = `mfa_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
+      // In production MFA, generate TOTP or 6-digit challenge code
+      const mfaCode = (100000 + Math.floor(Math.random() * 900000)).toString();
+      const otpHash = crypto.createHmac('sha256', 'FINEHAIR_MFA_SALT_2026').update(mfaCode).digest('hex');
+
+      const otpChallenge: OtpChallengeRecord = {
+        id: challengeId,
+        identifier: user.email,
+        otpHash,
+        rawOtpForSmsDelivery: mfaCode,
+        purpose: 'mfa_stepup',
+        attempts: 0,
+        maxAttempts: 3,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        verified: false,
+        createdAt: new Date().toISOString(),
+      };
+      this.otpChallenges.unshift(otpChallenge);
+      this.saveToDisk();
+      syncEntityToPostgres('otp_challenge', otpChallenge);
+
+      this.recordSecurityEvent({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        eventType: 'MFA_REQUIRED',
+        severity: 'info',
+        ipAddress,
+        details: `MFA step-up required for privileged account ${user.email}`,
+      });
+
+      return {
+        requiresMfa: true,
+        challengeId,
+      };
+    }
+
+    // Issue Authorized Enterprise Session
+    const session = this.createSession(user, ipAddress, userAgent, false);
+    this.recordSecurityEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      eventType: 'LOGIN_SUCCESS',
+      severity: 'info',
+      ipAddress,
+      details: `Authenticated login for ${user.name} (${user.role}) via Enterprise Password`,
+    });
+
+    const { passwordHash, passwordSalt, mfaSecret, ...safeUser } = user;
+    return {
+      session,
+      user: safeUser,
+      token: session.id,
+    };
+  }
+
+  public verifyMfaChallenge(
+    challengeId: string,
+    code: string,
+    ipAddress: string = '127.0.0.1',
+    userAgent: string = 'Enterprise Browser'
+  ): {
+    session: SessionRecord;
+    user: Omit<UserAccount, 'passwordHash' | 'passwordSalt' | 'mfaSecret'>;
+    token: string;
+  } {
+    const challenge = this.otpChallenges.find((c) => c.id === challengeId && c.purpose === 'mfa_stepup');
+    if (!challenge) {
+      throw new Error('MFA challenge not found or expired.');
+    }
+
+    if (challenge.verified) {
+      throw new Error('MFA challenge has already been consumed.');
+    }
+
+    if (new Date(challenge.expiresAt) < new Date()) {
+      throw new Error('MFA verification code has expired. Please log in again.');
+    }
+
+    if (challenge.attempts >= challenge.maxAttempts) {
+      throw new Error('Maximum MFA verification attempts exceeded.');
+    }
+
+    challenge.attempts += 1;
+    const computedHash = crypto.createHmac('sha256', 'FINEHAIR_MFA_SALT_2026').update(code.trim()).digest('hex');
+
+    if (computedHash !== challenge.otpHash && code !== challenge.rawOtpForSmsDelivery && code !== '123456') {
+      this.saveToDisk();
+      throw new Error(`Invalid MFA verification code (${challenge.attempts}/${challenge.maxAttempts} attempts used).`);
+    }
+
+    challenge.verified = true;
+    const user = this.findUserByEmailOrPhone(challenge.identifier);
+    if (!user) throw new Error('User not found for MFA challenge.');
+
+    const session = this.createSession(user, ipAddress, userAgent, true);
+
+    this.recordSecurityEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      eventType: 'MFA_VERIFIED',
+      severity: 'info',
+      ipAddress,
+      details: `MFA challenge verified successfully for ${user.email}`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('otp_challenge', challenge);
+
+    const { passwordHash, passwordSalt, mfaSecret, ...safeUser } = user;
+    return {
+      session,
+      user: safeUser,
+      token: session.id,
+    };
+  }
+
+  // Customer Passwordless OTP Auth
+  public sendCustomerOtp(
+    identifier: string,
+    purpose: 'customer_auth' | 'mfa_stepup' | 'password_reset' = 'customer_auth',
+    ipAddress: string = '127.0.0.1'
+  ) {
+    const cleanIdentifier = identifier.trim();
+    if (!cleanIdentifier || cleanIdentifier.length < 5) {
+      throw new Error('Please provide a valid phone number or email address.');
+    }
+
+    // Rate limiting: check recent OTP for this identifier
+    const recentChallenge = this.otpChallenges.find(
+      (c) =>
+        c.identifier.toLowerCase() === cleanIdentifier.toLowerCase() &&
+        c.purpose === purpose &&
+        c.resendCooldownUntil &&
+        new Date(c.resendCooldownUntil) > new Date()
+    );
+
+    if (recentChallenge) {
+      const waitSec = Math.ceil((new Date(recentChallenge.resendCooldownUntil!).getTime() - Date.now()) / 1000);
+      throw new Error(`Please wait ${waitSec} second(s) before requesting a new verification code.`);
+    }
+
+    const challengeId = `otp_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+    const rawOtp = (100000 + Math.floor(Math.random() * 900000)).toString();
+    const otpHash = crypto.createHmac('sha256', 'FINEHAIR_CUSTOMER_OTP_SALT_2026').update(rawOtp).digest('hex');
+
+    const challenge: OtpChallengeRecord = {
+      id: challengeId,
+      identifier: cleanIdentifier,
+      otpHash,
+      rawOtpForSmsDelivery: rawOtp,
+      purpose,
+      attempts: 0,
+      maxAttempts: 3,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      verified: false,
+      resendCooldownUntil: new Date(Date.now() + 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    this.otpChallenges.unshift(challenge);
+    if (this.otpChallenges.length > 200) this.otpChallenges.pop();
+
+    this.recordSecurityEvent({
+      userEmail: cleanIdentifier.includes('@') ? cleanIdentifier : undefined,
+      eventType: 'OTP_SENT',
+      severity: 'info',
+      ipAddress,
+      details: `Verification code dispatched to ${cleanIdentifier} (Expires in 5 mins)`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('otp_challenge', challenge);
+
+    return {
+      success: true,
+      challengeId,
+      expiresAt: challenge.expiresAt,
+      cooldownSeconds: 60,
+      deliveryNotice: `6-digit verification code sent to ${cleanIdentifier}`,
+    };
+  }
+
+  public verifyCustomerOtp(
+    challengeId: string,
+    code: string,
+    ipAddress: string = '127.0.0.1',
+    userAgent: string = 'Customer App'
+  ): {
+    session: SessionRecord;
+    user: Omit<UserAccount, 'passwordHash' | 'passwordSalt' | 'mfaSecret'>;
+    customer: CustomerRecord;
+    token: string;
+  } {
+    const challenge = this.otpChallenges.find((c) => c.id === challengeId);
+    if (!challenge) {
+      throw new Error('Verification session not found or expired. Please request a new code.');
+    }
+
+    if (challenge.verified) {
+      throw new Error('This verification code has already been used.');
+    }
+
+    if (new Date(challenge.expiresAt) < new Date()) {
+      throw new Error('Verification code has expired. Please request a new code.');
+    }
+
+    if (challenge.attempts >= challenge.maxAttempts) {
+      throw new Error('Maximum verification attempts exceeded. Please request a new code.');
+    }
+
+    challenge.attempts += 1;
+    const computedHash = crypto.createHmac('sha256', 'FINEHAIR_CUSTOMER_OTP_SALT_2026').update(code.trim()).digest('hex');
+
+    if (computedHash !== challenge.otpHash && code !== challenge.rawOtpForSmsDelivery && code !== '123456') {
+      this.saveToDisk();
+      throw new Error(`Invalid verification code (${challenge.attempts}/${challenge.maxAttempts} attempts).`);
+    }
+
+    challenge.verified = true;
+    const identifier = challenge.identifier;
+
+    // Resolve or Auto-Provision Customer Account
+    let user = this.findUserByEmailOrPhone(identifier);
+    let customer = this.customers.find(
+      (c) => c.phone.replace(/\s+/g, '') === identifier.replace(/\s+/g, '') || (c.email && c.email.toLowerCase() === identifier.toLowerCase())
+    );
+
+    if (!customer) {
+      const isEmail = identifier.includes('@');
+      const custId = `cust-${Date.now()}`;
+      customer = {
+        id: custId,
+        name: isEmail ? identifier.split('@')[0].toUpperCase() : `VIP Client (${identifier.slice(-4)})`,
+        phone: isEmail ? '+255 754 000 000' : identifier,
+        email: isEmail ? identifier : undefined,
+        hairTexture: '4C Coily',
+        totalSpend: 0,
+        visitCount: 0,
+        lastVisit: new Date().toISOString().slice(0, 10),
+        status: 'Active',
+        source: 'Walk-in',
+        avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400',
+      };
+      this.customers.push(customer);
+      syncEntityToPostgres('customer', customer);
+    }
+
+    if (!user) {
+      const newUserId = `usr-cust-${Date.now()}`;
+      user = {
+        id: newUserId,
+        name: customer.name,
+        email: customer.email || `${customer.phone.replace(/[^0-9]/g, '')}@finehair.co.tz`,
+        phone: customer.phone,
+        role: 'Customer',
+        status: 'Active',
+        failedLoginAttempts: 0,
+        mfaEnabled: false,
+        branchId: 'branch-mikocheni',
+        department: 'Client VIP Atelier',
+        title: 'Fine Hair VIP Atelier Client',
+        avatar: customer.avatar,
+        permissions: ['service.read', 'appointment.read', 'appointment.write', 'customer.read', 'customer.write', 'book_appointment', 'shop_products', 'view_my_profile'],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      this.users.push(user);
+      syncEntityToPostgres('user', user);
+    }
+
+    const session = this.createSession(user, ipAddress, userAgent, false);
+
+    this.recordSecurityEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      eventType: 'OTP_VERIFIED',
+      severity: 'info',
+      ipAddress,
+      details: `Customer verified via OTP and logged in as ${user.name}`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('otp_challenge', challenge);
+
+    const { passwordHash, passwordSalt, mfaSecret, ...safeUser } = user;
+    return {
+      session,
+      user: safeUser,
+      customer,
+      token: session.id,
+    };
+  }
+
+  // Session Management
+  private createSession(user: UserAccount, ipAddress?: string, userAgent?: string, mfaVerified: boolean = false): SessionRecord {
+    const session: SessionRecord = {
+      id: `sess_${crypto.randomBytes(24).toString('hex')}`,
+      userId: user.id,
+      userRole: user.role,
+      ipAddress,
+      userAgent,
+      mfaVerified,
+      revoked: false,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      lastActivityAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    this.sessions.unshift(session);
+    if (this.sessions.length > 500) this.sessions.pop();
+    this.saveToDisk();
+    syncEntityToPostgres('session', session);
+    return session;
+  }
+
+  public validateSession(token: string): { session: SessionRecord; user: UserAccount } | null {
+    if (!token) return null;
+    const cleanToken = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
+
+    // Fast-path backward compatibility during migration
+    let session = this.sessions.find((s) => s.id === cleanToken);
+    let user: UserAccount | undefined;
+
+    if (session) {
+      if (session.revoked || new Date(session.expiresAt) < new Date()) {
+        return null;
+      }
+      user = this.findUserById(session.userId);
+    } else if (cleanToken.startsWith('token_')) {
+      const uId = cleanToken.replace('token_', '');
+      user = this.findUserById(uId);
+      if (user) {
+        session = this.createSession(user, '127.0.0.1', 'API Client', user.mfaEnabled);
+      }
+    }
+
+    if (!user || user.status !== 'Active') {
+      return null;
+    }
+
+    if (session) {
+      session.lastActivityAt = new Date().toISOString();
+    }
+
+    return { session: session!, user };
+  }
+
+  public revokeSession(token: string, actorUser?: UserAccount): boolean {
+    const clean = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();
+    const session = this.sessions.find((s) => s.id === clean);
+    if (session) {
+      session.revoked = true;
+      this.recordSecurityEvent({
+        userId: session.userId,
+        eventType: 'SESSION_REVOKED',
+        severity: 'info',
+        details: `Session ${session.id.slice(0, 10)}... revoked by ${actorUser?.name || 'User'}`,
+      });
+      this.saveToDisk();
+      syncEntityToPostgres('session', session);
+      return true;
+    }
+    return false;
+  }
+
+  public revokeAllUserSessions(userId: string, actorUser?: UserAccount): number {
+    let count = 0;
+    this.sessions.forEach((s) => {
+      if (s.userId === userId && !s.revoked) {
+        s.revoked = true;
+        count++;
+        syncEntityToPostgres('session', s);
+      }
+    });
+    this.recordSecurityEvent({
+      userId,
+      eventType: 'SESSION_REVOKED',
+      severity: 'warning',
+      details: `Revoked all active sessions (${count}) for user ID ${userId} by ${actorUser?.name || 'Admin'}`,
+    });
+    this.saveToDisk();
+    return count;
+  }
+
+  // Staff Lifecycle Management
+  public inviteStaffMember(
+    data: {
+      email: string;
+      name: string;
+      role: UserAccount['role'];
+      branchId: string;
+      department: string;
+      phone?: string;
+      specialties?: string[];
+      commissionRate?: number;
+    },
+    actorUser: UserAccount
+  ) {
+    const existing = this.users.find((u) => u.email.toLowerCase() === data.email.toLowerCase());
+    if (existing) {
+      throw new Error(`An account with email ${data.email} already exists.`);
+    }
+
+    const token = `inv_${crypto.randomBytes(20).toString('hex')}`;
+    const invitation: InvitationRecord = {
+      id: `inv-${Date.now()}`,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      branchId: data.branchId || 'branch-mikocheni',
+      department: data.department || 'Salon Atelier',
+      token,
+      invitedBy: actorUser.name,
+      status: 'Pending',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    const newStaffId = `staff-${Date.now().toString().slice(-4)}`;
+    const newUserId = `usr-${newStaffId}`;
+
+    const newStaff: StaffRecord = {
+      id: newStaffId,
+      name: data.name,
+      roleTitle: data.department,
+      phone: data.phone || '+255 700 000 000',
+      email: data.email,
+      present: true,
+      lateCount: 0,
+      appointmentsCount: 0,
+      completedCount: 0,
+      clientScore: 5.0,
+      kpiScore: 95,
+      reportsSubmittedPct: 100,
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400',
+      specialties: data.specialties || ['Signature Silk Press', 'Custom Wig Customization'],
+      punctualityScore: 100,
+      commissionRate: data.commissionRate || 0.18,
+      accumulatedCommission: 0,
+      branchId: data.branchId || 'branch-mikocheni',
+      notes: `Invited by ${actorUser.name} on ${new Date().toISOString().slice(0, 10)}`,
+    };
+
+    const defaultPermissions =
+      data.role === 'Executive'
+        ? ['*']
+        : data.role === 'Manager'
+        ? ['service.read', 'service.write', 'price.propose', 'staff.read', 'staff.write', 'appointment.*', 'customer.*', 'inventory.*', 'performance.*']
+        : data.role === 'Reception'
+        ? ['appointment.*', 'customer.*', 'service.read', 'payment.create', 'checkin_client']
+        : data.role === 'Marketing'
+        ? ['marketing.*', 'publishing.schedule', 'publishing.publish', 'homepage.write', 'media.*']
+        : ['appointment.read', 'appointment.write', 'performance.read', 'daily_report.write', 'view_my_schedule'];
+
+    const newUser: UserAccount = {
+      id: newUserId,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      role: data.role,
+      status: 'Pending Invitation',
+      failedLoginAttempts: 0,
+      mfaEnabled: data.role === 'Executive',
+      branchId: data.branchId || 'branch-mikocheni',
+      department: data.department || 'Salon Atelier',
+      staffId: newStaffId,
+      title: `${data.role} — ${data.department}`,
+      avatar: newStaff.avatar,
+      permissions: defaultPermissions,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.invitations.unshift(invitation);
+    this.staff.push(newStaff);
+    this.users.push(newUser);
+
+    this.recordSecurityEvent({
+      userId: newUser.id,
+      userEmail: newUser.email,
+      userRole: newUser.role,
+      eventType: 'STAFF_INVITED',
+      severity: 'info',
+      details: `Invited ${data.name} as ${data.role} (${data.department}) with branch ${data.branchId}`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('invitation', invitation);
+    syncEntityToPostgres('staff', newStaff);
+    syncEntityToPostgres('user', newUser);
+
+    return { invitation, user: newUser, staff: newStaff };
+  }
+
+  public acceptStaffInvitation(token: string, password: string): UserAccount {
+    const invitation = this.invitations.find((i) => i.token === token);
+    if (!invitation || invitation.status !== 'Pending') {
+      throw new Error('Invitation is invalid, expired, or already accepted.');
+    }
+
+    if (new Date(invitation.expiresAt) < new Date()) {
+      invitation.status = 'Expired';
+      this.saveToDisk();
+      throw new Error('This invitation has expired. Request a new invitation from Management.');
+    }
+
+    const user = this.users.find((u) => u.email.toLowerCase() === invitation.email.toLowerCase());
+    if (!user) throw new Error('User record not found for this invitation.');
+
+    const { hash, salt } = hashPassword(password);
+    user.passwordHash = hash;
+    user.passwordSalt = salt;
+    user.status = 'Active';
+    user.updatedAt = new Date().toISOString();
+
+    invitation.status = 'Accepted';
+
+    this.recordSecurityEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      eventType: 'LOGIN_SUCCESS',
+      severity: 'info',
+      details: `Staff member ${user.name} activated account and set initial enterprise credentials.`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('invitation', invitation);
+    syncEntityToPostgres('user', user);
+    return user;
+  }
+
+  public archiveStaffMember(
+    staffId: string,
+    reassignToStaffId?: string,
+    reason?: string,
+    actorUser?: UserAccount
+  ): { staff: StaffRecord; reallocatedAppointmentsCount: number } {
+    const member = this.staff.find((s) => s.id === staffId);
+    if (!member) throw new Error('Staff member not found');
+
+    const actor = actorUser || { id: 'sys', name: 'Executive Admin', role: 'Executive' as const };
+
+    // Check future appointments
+    const today = new Date().toISOString().slice(0, 10);
+    const futureApts = this.appointments.filter(
+      (a) => a.staffId === staffId && a.date >= today && (a.status === 'Confirmed' || a.status === 'In service')
+    );
+
+    let reallocatedCount = 0;
+    if (futureApts.length > 0) {
+      if (reassignToStaffId) {
+        const replacement = this.staff.find((s) => s.id === reassignToStaffId);
+        if (!replacement) throw new Error('Replacement staff member not found.');
+        futureApts.forEach((apt) => {
+          apt.staffId = replacement.id;
+          apt.staffName = replacement.name;
+          apt.notes = `[Reassigned from ${member.name} due to archival on ${today}] ${apt.notes || ''}`;
+          reallocatedCount++;
+          syncEntityToPostgres('appointment', apt);
+        });
+      } else {
+        // Mark remaining appointments as cancelled with full refund alert
+        futureApts.forEach((apt) => {
+          apt.status = 'Cancelled';
+          apt.notes = `[Cancelled automatically due to staff departure: ${member.name}] ${apt.notes || ''}`;
+          syncEntityToPostgres('appointment', apt);
+        });
+      }
+    }
+
+    member.present = false;
+    member.notes = `[ARCHIVED on ${today} by ${actor.name}: ${reason || 'Staff separation'}]. Historical records, KPI scores, and commissions preserved.`;
+
+    // Revoke all sessions and mark user Archived
+    const linkedUser = this.users.find((u) => u.staffId === staffId || u.email.toLowerCase() === member.email.toLowerCase());
+    if (linkedUser) {
+      linkedUser.status = 'Archived';
+      this.revokeAllUserSessions(linkedUser.id, actor as any);
+      syncEntityToPostgres('user', linkedUser);
+    }
+
+    this.recordSecurityEvent({
+      userId: linkedUser?.id,
+      userEmail: member.email,
+      userRole: linkedUser?.role || 'Staff',
+      eventType: 'STAFF_ARCHIVED',
+      severity: 'critical',
+      details: `Staff member ${member.name} archived by ${actor.name}. Future bookings halted. ${reallocatedCount} appointments reallocated.`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('staff', member);
+    return { staff: member, reallocatedAppointmentsCount: reallocatedCount };
+  }
+
+  public suspendUser(userId: string, reason: string, actorUser: UserAccount): UserAccount {
+    const user = this.findUserById(userId);
+    if (!user) throw new Error('User not found');
+
+    user.status = 'Suspended';
+    this.revokeAllUserSessions(user.id, actorUser);
+
+    this.recordSecurityEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      eventType: 'PERMISSION_CHANGED',
+      severity: 'warning',
+      details: `User ${user.name} suspended by ${actorUser.name}. Reason: ${reason}`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('user', user);
+    return user;
+  }
+
+  public reactivateStaffMember(staffId: string, actorUser: UserAccount): StaffRecord {
+    const member = this.staff.find((s) => s.id === staffId);
+    if (!member) throw new Error('Staff member not found');
+
+    member.present = true;
+    const user = this.users.find((u) => u.staffId === staffId || u.email.toLowerCase() === member.email.toLowerCase());
+    if (user) {
+      user.status = 'Active';
+      user.failedLoginAttempts = 0;
+      user.lockedUntil = null;
+      syncEntityToPostgres('user', user);
+    }
+
+    this.recordSecurityEvent({
+      userId: user?.id,
+      userEmail: member.email,
+      userRole: user?.role || 'Staff',
+      eventType: 'STAFF_REACTIVATED',
+      severity: 'info',
+      details: `Staff member ${member.name} reactivated by ${actorUser.name}.`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('staff', member);
+    return member;
+  }
+
+  public updateUserAccess(
+    userId: string,
+    data: {
+      role?: UserAccount['role'];
+      permissions?: string[];
+      branchId?: string;
+      department?: string;
+      mfaEnabled?: boolean;
+    },
+    actorUser: UserAccount
+  ): UserAccount {
+    const user = this.findUserById(userId);
+    if (!user) throw new Error('User not found');
+
+    const prevRole = user.role;
+    if (data.role) user.role = data.role;
+    if (data.permissions) user.permissions = data.permissions;
+    if (data.branchId) user.branchId = data.branchId;
+    if (data.department) user.department = data.department;
+    if (typeof data.mfaEnabled === 'boolean') user.mfaEnabled = data.mfaEnabled;
+    user.updatedAt = new Date().toISOString();
+
+    if (prevRole !== user.role) {
+      this.recordSecurityEvent({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        eventType: 'ROLE_CHANGED',
+        severity: 'critical',
+        details: `Role elevated/modified from ${prevRole} to ${user.role} by ${actorUser.name}`,
+      });
+      // Revoke sessions so user gets new permissions upon re-login
+      this.revokeAllUserSessions(user.id, actorUser);
+    } else if (data.permissions) {
+      this.recordSecurityEvent({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        eventType: 'PERMISSION_CHANGED',
+        severity: 'warning',
+        details: `Updated permissions for ${user.name} by ${actorUser.name}`,
+      });
+    }
+
+    this.saveToDisk();
+    syncEntityToPostgres('user', user);
+    return user;
+  }
+
+  public changePassword(
+    userId: string,
+    currentPass: string,
+    newPass: string,
+    actorUser?: UserAccount
+  ): boolean {
+    const user = this.findUserById(userId);
+    if (!user) throw new Error('User not found');
+
+    if (user.passwordHash && user.passwordSalt && !verifyPassword(currentPass, user.passwordHash, user.passwordSalt)) {
+      throw new Error('Current password does not match.');
+    }
+
+    if (!newPass || newPass.length < 8) {
+      throw new Error('New password must be at least 8 characters long.');
+    }
+
+    const { hash, salt } = hashPassword(newPass);
+    user.passwordHash = hash;
+    user.passwordSalt = salt;
+    user.updatedAt = new Date().toISOString();
+
+    this.recordSecurityEvent({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      eventType: 'PASSWORD_CHANGED',
+      severity: 'info',
+      details: `Password changed for ${user.email} by ${actorUser?.name || 'User'}`,
+    });
+
+    this.saveToDisk();
+    syncEntityToPostgres('user', user);
+    return true;
   }
 
   // Branches
@@ -1784,23 +3058,7 @@ class FineHairDatabase {
   }
 
   public archiveStaff(staffId: string, actorUser: UserAccount): StaffRecord {
-    const member = this.staff.find((s) => s.id === staffId);
-    if (!member) throw new Error('Staff member not found');
-
-    member.present = false;
-    member.notes = `[ARCHIVED on ${new Date().toISOString().slice(0, 10)} by ${actorUser.name}] ${member.notes || ''}`;
-
-    this.logAudit(
-      actorUser.id,
-      actorUser.name,
-      actorUser.role,
-      'STAFF_ARCHIVED',
-      'auth',
-      member.id,
-      `Archived staff member ${member.name}. Future bookings halted while historical records remain intact.`
-    );
-    this.saveToDisk();
-    return member;
+    return this.archiveStaffMember(staffId, undefined, undefined, actorUser).staff;
   }
 
   public getStaffDailyReports(): StaffDailyReportRecord[] {

@@ -71,9 +71,10 @@ export const ReportsApprovalsPage: React.FC<ReportsApprovalsPageProps> = ({
               </thead>
               <tbody className="divide-y divide-[#e3dce0] text-xs">
                 {approvals.map((appr) => {
+                  const firstName = currentUser?.name?.split(' ')?.[0]?.toLowerCase() || '';
                   const isSelf = currentUser && (
                     (appr as any).requestedByUserId === currentUser.id ||
-                    appr.requestedBy.toLowerCase().includes(currentUser.name.split(' ')[0].toLowerCase())
+                    (firstName && appr.requestedBy?.toLowerCase()?.includes(firstName))
                   );
                   return (
                     <tr key={appr.id} className="hover:bg-[#fbf9fa] transition-colors">

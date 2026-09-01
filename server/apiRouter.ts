@@ -1,35 +1,79 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { db, UserAccount } from './db.js';
+import { db, UserAccount, SessionRecord } from './db.js';
 
 export const apiRouter = Router();
 
-// Helper to extract verified user from header/session
-function getCurrentUser(req: Request): UserAccount {
-  const userId = req.headers['x-user-id'] as string;
-  if (userId) {
-    const found = db.findUserById(userId);
-    if (found) return found;
+// Helper to extract verified user from authoritative session token
+export function getAuthenticatedContext(req: Request): { user: UserAccount; session: SessionRecord } | null {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader) return null;
+
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+  if (!token) return null;
+
+  return db.validateSession(token);
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const ctx = getAuthenticatedContext(req);
+  if (!ctx) {
+    return res.status(401).json({
+      error: 'Unauthorized: A valid, active enterprise session token is required. Please log in.',
+    });
   }
-  // Default to first executive for authenticated root session
-  return db.getUsers()[0];
+  (req as any).user = ctx.user;
+  (req as any).session = ctx.session;
+  next();
+}
+
+function getCurrentUser(req: Request): UserAccount {
+  const ctx = getAuthenticatedContext(req);
+  if (ctx) return ctx.user;
+  // If not authenticated in public routes, return a read-only guest customer
+  return {
+    id: 'usr-guest',
+    name: 'Guest Visitor',
+    email: 'guest@finehair.co.tz',
+    role: 'Customer',
+    status: 'Active',
+    mfaEnabled: false,
+    failedLoginAttempts: 0,
+    branchId: 'branch-mikocheni',
+    department: 'Client VIP Atelier',
+    title: 'Guest Visitor',
+    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400',
+    permissions: ['service.read', 'appointment.read', 'appointment.write', 'customer.read', 'customer.write', 'book_appointment', 'shop_products'],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 // Server-side RBAC & Permission Enforcement Middleware
 export function requireRole(allowedRoles: Array<UserAccount['role']>) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = getCurrentUser(req);
+    const ctx = getAuthenticatedContext(req);
+    if (!ctx) {
+      return res.status(401).json({ error: 'Authentication required. Active session token missing or expired.' });
+    }
+    const user = ctx.user;
     if (!allowedRoles.includes(user.role)) {
       return res.status(403).json({
         error: `Access Denied: Role "${user.role}" does not have privilege for this operation. Required: ${allowedRoles.join(', ')}`,
       });
     }
+    (req as any).user = user;
+    (req as any).session = ctx.session;
     next();
   };
 }
 
 export function requirePermission(permission: string) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = getCurrentUser(req);
+    const ctx = getAuthenticatedContext(req);
+    if (!ctx) {
+      return res.status(401).json({ error: 'Authentication required. Active session token missing or expired.' });
+    }
+    const user = ctx.user;
     const hasWildcard = user.permissions.includes('*');
     const hasExact = user.permissions.includes(permission);
     const hasCategory = user.permissions.some((p) => p.endsWith('.*') && permission.startsWith(p.slice(0, -2)));
@@ -39,30 +83,231 @@ export function requirePermission(permission: string) {
         error: `Permission Denied: Missing required permission "${permission}" for user ${user.name} (${user.role})`,
       });
     }
+    (req as any).user = user;
+    (req as any).session = ctx.session;
     next();
   };
 }
 
 // -------------------------------------------------------------
-// 1. AUTHENTICATION & USERS
+// 1. ENTERPRISE AUTHENTICATION, MFA & IAM
 // -------------------------------------------------------------
 
-apiRouter.post('/auth/login', (req: Request, res: Response) => {
-  const { email, pin } = req.body;
-  if (!email || !pin) {
-    return res.status(400).json({ error: 'Email and PIN are required' });
+// Staff/Management Login via Email/Phone + Secure Password
+apiRouter.post('/auth/staff/login', (req: Request, res: Response) => {
+  const { email, phone, identifier, password } = req.body;
+  const loginId = identifier || email || phone;
+
+  if (!loginId || !password) {
+    return res.status(400).json({ error: 'Email/phone and secure password are required.' });
   }
 
-  const user = db.authenticate(email, pin);
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials. Please verify your email and security PIN.' });
+  try {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
+    const userAgent = (req.headers['user-agent'] as string) || 'Browser';
+    const result = db.authenticateStaff(loginId, password, ip, userAgent);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(401).json({ error: err.message });
   }
-
-  res.json({ success: true, user });
 });
 
-apiRouter.get('/auth/users', (_req: Request, res: Response) => {
-  res.json({ users: db.getUsers() });
+// Staff MFA Step-Up Verification
+apiRouter.post('/auth/staff/verify-mfa', (req: Request, res: Response) => {
+  const { challengeId, code } = req.body;
+  if (!challengeId || !code) {
+    return res.status(400).json({ error: 'MFA challengeId and 6-digit verification code are required.' });
+  }
+
+  try {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
+    const userAgent = (req.headers['user-agent'] as string) || 'Browser';
+    const result = db.verifyMfaChallenge(challengeId, code, ip, userAgent);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+// Customer Real Passwordless OTP Initiation (Phone / Email)
+apiRouter.post('/auth/customer/send-otp', (req: Request, res: Response) => {
+  const { identifier, phone, email, purpose } = req.body;
+  const target = identifier || phone || email;
+
+  if (!target) {
+    return res.status(400).json({ error: 'Phone number or email is required to receive verification code.' });
+  }
+
+  try {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
+    const result = db.sendCustomerOtp(target, purpose || 'customer_auth', ip);
+    res.json(result);
+  } catch (err: any) {
+    res.status(429).json({ error: err.message });
+  }
+});
+
+// Customer OTP Verification & Session Establishment
+apiRouter.post('/auth/customer/verify-otp', (req: Request, res: Response) => {
+  const { challengeId, code } = req.body;
+  if (!challengeId || !code) {
+    return res.status(400).json({ error: 'challengeId and 6-digit code are required.' });
+  }
+
+  try {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || '127.0.0.1';
+    const userAgent = (req.headers['user-agent'] as string) || 'Customer App';
+    const result = db.verifyCustomerOtp(challengeId, code, ip, userAgent);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Legacy / Direct Login Bridge (Supports both password and token)
+apiRouter.post('/auth/login', (req: Request, res: Response) => {
+  const { email, password, pin } = req.body;
+  const cred = password || pin;
+
+  if (!email || !cred) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  try {
+    const ip = req.ip || '127.0.0.1';
+    const userAgent = (req.headers['user-agent'] as string) || 'Browser';
+    const result = db.authenticateStaff(email, cred, ip, userAgent);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(401).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/auth/me', (req: Request, res: Response) => {
+  const ctx = getAuthenticatedContext(req);
+  if (!ctx) {
+    return res.status(401).json({ error: 'Not authenticated or session expired' });
+  }
+  const { passwordHash, passwordSalt, mfaSecret, ...safeUser } = ctx.user;
+  res.json({ success: true, user: safeUser, session: ctx.session });
+});
+
+apiRouter.post('/auth/logout', requireAuth, (req: Request, res: Response) => {
+  const token = req.headers['authorization'] || '';
+  const currentUser = (req as any).user;
+  db.revokeSession(token, currentUser);
+  res.json({ success: true, message: 'Successfully logged out and session revoked.' });
+});
+
+apiRouter.post('/auth/logout-all', requireAuth, (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  const count = db.revokeAllUserSessions(currentUser.id, currentUser);
+  res.json({ success: true, message: `Revoked all ${count} active sessions across devices.` });
+});
+
+apiRouter.post('/auth/change-password', requireAuth, (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword) {
+    return res.status(400).json({ error: 'New password is required.' });
+  }
+
+  try {
+    db.changePassword(currentUser.id, currentPassword, newPassword, currentUser);
+    res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/auth/invite-staff', requireRole(['Executive', 'Manager']), (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  const { email, name, role, branchId, department, phone, specialties, commissionRate } = req.body;
+
+  if (!email || !name || !role) {
+    return res.status(400).json({ error: 'email, name, and role are required to invite staff.' });
+  }
+
+  try {
+    const result = db.inviteStaffMember(
+      { email, name, role, branchId: branchId || 'branch-mikocheni', department: department || 'Salon Atelier', phone, specialties, commissionRate },
+      currentUser
+    );
+    res.status(201).json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/auth/accept-invitation', (req: Request, res: Response) => {
+  const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Invitation token and initial password are required.' });
+  }
+
+  try {
+    const user = db.acceptStaffInvitation(token, password);
+    const { passwordHash, passwordSalt, mfaSecret, ...safeUser } = user;
+    res.json({ success: true, user: safeUser, message: 'Account activated successfully. You can now log in.' });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/auth/staff/:id/archive', requireRole(['Executive', 'Manager']), (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  const { reassignToStaffId, reason } = req.body;
+
+  try {
+    const result = db.archiveStaffMember(req.params.id, reassignToStaffId, reason, currentUser);
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/auth/staff/:id/reactivate', requireRole(['Executive']), (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  try {
+    const staff = db.reactivateStaffMember(req.params.id, currentUser);
+    res.json({ success: true, staff });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.post('/auth/users/:id/suspend', requireRole(['Executive']), (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  const { reason } = req.body;
+  try {
+    const user = db.suspendUser(req.params.id, reason || 'Administrative suspension', currentUser);
+    res.json({ success: true, user });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.put('/auth/users/:id/access', requireRole(['Executive']), (req: Request, res: Response) => {
+  const currentUser = (req as any).user;
+  try {
+    const user = db.updateUserAccess(req.params.id, req.body, currentUser);
+    res.json({ success: true, user });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+apiRouter.get('/auth/security-events', requireRole(['Executive', 'Manager']), (req: Request, res: Response) => {
+  const limit = req.query.limit ? Number(req.query.limit) : 100;
+  res.json({ events: db.getSecurityEvents(limit) });
+});
+
+apiRouter.get('/auth/users', requireRole(['Executive', 'Manager']), (_req: Request, res: Response) => {
+  const safeUsers = db.getUsers().map((u) => {
+    const { passwordHash, passwordSalt, mfaSecret, ...safe } = u;
+    return safe;
+  });
+  res.json({ users: safeUsers });
 });
 
 // -------------------------------------------------------------

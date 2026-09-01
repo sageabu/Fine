@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Service, StaffMember, Appointment, Language, CustomerHairProfile, BraidSize } from '../../types';
 import { formatTZS, generateWhatsAppLink } from '../../utils/formatters';
 import { Calendar, Clock, MapPin, Check, User, Phone, Sparkles, MessageSquare, Scissors, Tag, Info } from 'lucide-react';
@@ -25,9 +25,23 @@ export const BookingView: React.FC<BookingViewProps> = ({
   onOpenLoginModal,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedService, setSelectedService] = useState<Service>(initialSelectedService || services?.[0]);
+  const [selectedService, setSelectedService] = useState<Service | undefined>(initialSelectedService || services?.[0]);
   const [selectedBraidSize, setSelectedBraidSize] = useState<BraidSize>('Medium');
-  const [selectedStaff, setSelectedStaff] = useState<StaffMember>(staffList?.[0]);
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | undefined>(staffList?.[0]);
+
+  useEffect(() => {
+    if (initialSelectedService) {
+      setSelectedService(initialSelectedService);
+    } else if (!selectedService && services && services.length > 0) {
+      setSelectedService(services[0]);
+    }
+  }, [initialSelectedService, services]);
+
+  useEffect(() => {
+    if (!selectedStaff && staffList && staffList.length > 0) {
+      setSelectedStaff(staffList[0]);
+    }
+  }, [staffList]);
   const [selectedLocation, setSelectedLocation] = useState<'Fine Hair Salon (Mikocheni B, Ussagara Street)' | 'VIP Home / Hotel Glam'>('Fine Hair Salon (Mikocheni B, Ussagara Street)');
   const [selectedDate, setSelectedDate] = useState<string>('2026-08-25');
   const [selectedTime, setSelectedTime] = useState<string>('11:00');
@@ -51,16 +65,16 @@ export const BookingView: React.FC<BookingViewProps> = ({
   ];
 
   // Dynamic price calculation with braid sizing
-  const baseServicePrice = selectedService.sizeOptions
-    ? (selectedService.sizeOptions.find((opt) => opt.size === selectedBraidSize)?.price ?? selectedService.price)
-    : selectedService.price;
+  const baseServicePrice = selectedService?.sizeOptions
+    ? (selectedService.sizeOptions.find((opt) => opt.size === selectedBraidSize)?.price ?? (selectedService?.price || 0))
+    : (selectedService?.price || 0);
 
   const grandTotal = baseServicePrice + (selectedLocation.includes('VIP Home') ? 50000 : 0);
-  const depositRequired = selectedService.depositRequired;
+  const depositRequired = selectedService?.depositRequired || 0;
 
   // Filter qualified staff for selected service
   const qualifiedStaff = staffList.filter((s) =>
-    selectedService.qualifiedStaffIds ? selectedService.qualifiedStaffIds.includes(s.id) : true
+    selectedService?.qualifiedStaffIds ? selectedService.qualifiedStaffIds.includes(s.id) : true
   );
 
   const filteredServices = services.filter(
@@ -69,7 +83,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName.trim() || !customerPhone.trim()) return;
+    if (!customerName.trim() || !customerPhone.trim() || !selectedService || !selectedStaff) return;
 
     const newApt: Appointment = {
       id: `apt-${Date.now().toString().slice(-4)}`,
@@ -267,7 +281,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
           </div>
 
           {/* If service has size options (e.g. Micro Twists & Boho Braids) */}
-          {selectedService.sizeOptions && selectedService.sizeOptions.length > 0 && (
+          {selectedService?.sizeOptions && selectedService.sizeOptions.length > 0 && (
             <div className="p-4 bg-[#FAF9F6] border border-[#E8DECC] rounded-xl space-y-2">
               <span className="text-xs font-bold text-[#111111] block">
                 {language === 'en' ? 'Select Braid Density / Size:' : 'Chagua Ukubwa wa Misuko:'}
@@ -305,7 +319,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
           {/* Stylist selector */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(qualifiedStaff.length > 0 ? qualifiedStaff : staffList).map((staff) => {
-              const isSelected = selectedStaff.id === staff.id;
+              const isSelected = selectedStaff?.id === staff.id;
               return (
                 <div
                   key={staff.id}

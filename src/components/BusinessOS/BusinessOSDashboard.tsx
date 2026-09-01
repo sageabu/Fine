@@ -21,7 +21,7 @@ import {
   INITIAL_BOS_APPROVALS,
   INITIAL_BOS_COMPLAINTS,
 } from '../../data/businessOSMockData';
-import { api, UserAccount, setApiActiveUser } from '../../utils/apiClient';
+import { api, UserAccount, getStoredUser } from '../../utils/apiClient';
 
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -70,7 +70,7 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Authenticated User Session
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(getStoredUser());
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Core Datasets
@@ -90,21 +90,17 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
   // Initial Sync from Centralized Backend Database
   const refreshFromDatabase = async () => {
     try {
-      const [dbUsers, dbServices, dbAppointments, dbApprovals, dbMarketing] = await Promise.allSettled([
-        api.getUsers(),
+      const [meRes, dbServices, dbAppointments, dbApprovals, dbMarketing] = await Promise.allSettled([
+        api.getMe(),
         api.getServices(),
         api.getAppointments(),
         api.getApprovals(),
         api.getMarketingPosts(),
       ]);
 
-      if (dbUsers.status === 'fulfilled' && dbUsers.value.length > 0) {
-        if (!currentUser) {
-          const defaultUser = dbUsers.value[0];
-          setCurrentUser(defaultUser);
-          setApiActiveUser(defaultUser.id);
-          setActiveRole(defaultUser.role as BusinessOSRole);
-        }
+      if (meRes.status === 'fulfilled' && meRes.value.success && meRes.value.user) {
+        setCurrentUser(meRes.value.user);
+        setActiveRole(meRes.value.user.role as BusinessOSRole);
       }
 
       if (dbServices.status === 'fulfilled' && dbServices.value.length > 0) {
@@ -398,7 +394,6 @@ export const BusinessOSDashboard: React.FC<BusinessOSDashboardProps> = ({
         onUserAuthenticated={(user) => {
           setCurrentUser(user);
           setActiveRole(user.role as BusinessOSRole);
-          setApiActiveUser(user.id);
         }}
       />
 

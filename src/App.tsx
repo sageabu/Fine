@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   EcosystemPerspective,
   Product,
@@ -53,10 +53,12 @@ import {
   bosToAppointment,
   calculateAuditedFinancials,
 } from './utils/domainBridge';
-import { api } from './utils/apiClient';
+import { api, UserAccount, SessionRecord, getStoredUser, getStoredSession, clearApiSession } from './utils/apiClient';
 
 export default function App() {
-  // Role-Based Access Control State
+  // Enterprise IAM Authentication State
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(getStoredUser());
+  const [currentSession, setCurrentSession] = useState<SessionRecord | null>(getStoredSession());
   const [activeRole, setActiveRole] = useState<'customer' | 'staff' | 'management'>('customer');
   const [activeStaffId, setActiveStaffId] = useState<string>('staff-1');
   const [isRoleAccessModalOpen, setIsRoleAccessModalOpen] = useState<boolean>(false);
@@ -82,6 +84,50 @@ export default function App() {
   const [stockExceptions, setStockExceptions] = useState<StockExceptionItem[]>(mockStockExceptions);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>(mockTransactions);
 
+  // Check current session validity on startup and fetch database state
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        const meRes = await api.getMe();
+        if (meRes.success && meRes.user && meRes.session) {
+          setCurrentUser(meRes.user);
+          setCurrentSession(meRes.session);
+          if (['Executive', 'Manager', 'Supervisor', 'Admin'].includes(meRes.user.role)) {
+            setActiveRole('management');
+          } else if (['Stylist', 'Colorist', 'Trichologist', 'Staff'].includes(meRes.user.role)) {
+            setActiveRole('staff');
+            if (meRes.user.staffProfileId) {
+              setActiveStaffId(meRes.user.staffProfileId);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Session verification fallback to guest', err);
+      }
+
+      // Fetch live business data
+      try {
+        const [svcs, stff, apts] = await Promise.allSettled([
+          api.getServices(),
+          api.getStaff(),
+          api.getAppointments(),
+        ]);
+        if (svcs.status === 'fulfilled' && svcs.value && svcs.value.length > 0) {
+          setServices(svcs.value);
+        }
+        if (stff.status === 'fulfilled' && stff.value && stff.value.length > 0) {
+          setStaffList(stff.value);
+        }
+        if (apts.status === 'fulfilled' && apts.value && apts.value.length > 0) {
+          setAppointments(apts.value);
+        }
+      } catch (err) {
+        console.warn('Could not sync initial business collections', err);
+      }
+    };
+    initApp();
+  }, []);
+
   // Modal and Drawer States
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -104,6 +150,33 @@ export default function App() {
   // Active Staff Member Reference
   const activeStaffMember = staffList.find((s) => s.id === activeStaffId) || staffList?.[0];
 
+  // Enterprise Authentication Handlers
+  const handleAuthenticated = (user: UserAccount, session: SessionRecord) => {
+    setCurrentUser(user);
+    setCurrentSession(session);
+    if (['Executive', 'Manager', 'Supervisor', 'Admin'].includes(user.role)) {
+      setActiveRole('management');
+      setPerspective('business-os');
+    } else if (['Stylist', 'Colorist', 'Trichologist', 'Staff'].includes(user.role)) {
+      setActiveRole('staff');
+      if (user.staffProfileId) {
+        setActiveStaffId(user.staffProfileId);
+      }
+      setPerspective('staff');
+    } else {
+      setActiveRole('customer');
+      setPerspective('customer');
+    }
+  };
+
+  const handleLoggedOut = () => {
+    clearApiSession();
+    setCurrentUser(null);
+    setCurrentSession(null);
+    setActiveRole('customer');
+    setPerspective('customer');
+  };
+
   // Role Access Handler
   const handleRoleSelection = (role: 'customer' | 'staff' | 'management', staffId?: string) => {
     setActiveRole(role);
@@ -121,13 +194,13 @@ export default function App() {
   // Safe Perspective Selector with Strict Role Verification
   const handleSelectPerspective = (targetPerspective: any) => {
     if (targetPerspective === 'business-os' || targetPerspective === 'management') {
-      if (activeRole === 'management') {
+      if (currentUser && ['Executive', 'Manager', 'Supervisor', 'Admin'].includes(currentUser.role)) {
         setPerspective('business-os');
       } else {
         setIsRoleAccessModalOpen(true);
       }
     } else if (targetPerspective === 'staff') {
-      if (activeRole === 'staff' || activeRole === 'management') {
+      if (currentUser && ['Executive', 'Manager', 'Supervisor', 'Admin', 'Stylist', 'Colorist', 'Trichologist', 'Staff'].includes(currentUser.role)) {
         setPerspective('staff');
       } else {
         setIsRoleAccessModalOpen(true);
@@ -434,6 +507,8 @@ export default function App() {
         currentPerspective={perspective}
         activeRole={activeRole}
         activeStaffMember={activeStaffMember}
+        currentUser={currentUser}
+        currentSession={currentSession}
         onSelectPerspective={handleSelectPerspective}
         onOpenRoleAccess={() => setIsRoleAccessModalOpen(true)}
         cartCount={totalCartCount}
@@ -516,7 +591,7 @@ export default function App() {
                 services={services}
                 language={language}
                 userProfile={userProfile}
-                onAddToCart={(prod) => handleAddToCart(prod, prod.variants[0]?.length || 'Standard')}
+                onAddToCart={(prod) => handleAddToCart(prod, prod.variants?.[0]?.length || 'Standard')}
                 onSelectProduct={(prod) => {
                   setSelectedProductForModal(prod);
                   setCustomerTab('shop');
@@ -671,10 +746,10 @@ export default function App() {
       <RoleAccessModal
         isOpen={isRoleAccessModalOpen}
         onClose={() => setIsRoleAccessModalOpen(false)}
-        currentRole={activeRole}
-        activeStaffMember={activeStaffMember}
-        staffList={staffList}
-        onSelectRole={handleRoleSelection}
+        currentUser={currentUser}
+        currentSession={currentSession}
+        onAuthenticated={handleAuthenticated}
+        onLoggedOut={handleLoggedOut}
         language={language}
       />
 

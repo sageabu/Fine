@@ -218,7 +218,11 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
                       <div className="mt-2 flex items-center justify-between pt-2 border-t border-white/10 text-xs">
                         <span className="text-white/80">Available at Mikocheni B</span>
                         <button
-                          onClick={() => onAddToCart(products[0], '20 inch')}
+                          onClick={() => {
+                            if (products && products.length > 0) {
+                              onAddToCart(products[0], products[0].variants?.[0]?.length || '20 inch');
+                            }
+                          }}
                           className="text-xs bg-white text-black font-medium px-3 py-1 rounded-full hover:bg-[#E5D7C2] transition-colors cursor-pointer"
                         >
                           + Bag
@@ -362,7 +366,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
                       className="relative aspect-4/3 bg-[#F7F7F7] overflow-hidden cursor-pointer"
                     >
                       <img
-                        src={product.images[0]}
+                        src={product.images?.[0] || 'https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1000'}
                         alt={product.name}
                         className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                       />
@@ -422,7 +426,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({
                           </span>
                         </div>
                         <button
-                          onClick={() => onAddToCart(product, product.variants[0]?.length || 'Default')}
+                          onClick={() => onAddToCart(product, product.variants?.[0]?.length || 'Default')}
                           className="bg-[#F5F5F3] hover:bg-[#111111] hover:text-white text-[#111111] px-4 py-2 rounded-full text-xs font-medium transition-all flex items-center space-x-1.5 cursor-pointer"
                         >
                           <ShoppingBag className="w-3.5 h-3.5" />

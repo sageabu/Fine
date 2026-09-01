@@ -1,0 +1,1425 @@
+{
+  "users": [
+    {
+      "id": "usr-director",
+      "name": "Tariq A. (Managing Director & Founder)",
+      "email": "director@finehair.co.tz",
+      "phone": "+255 754 892 000",
+      "role": "Executive",
+      "status": "Active",
+      "passwordHash": "0b468c29345accbd55429fba46fc5687b19df03d9d0583b0f7eb70da9d44ef5a52330ae08cab5799c046660ae07a6384c20d9104341d0a0bc85c17b39ce453d0",
+      "passwordSalt": "salt_dir_2026",
+      "mfaEnabled": true,
+      "mfaSecret": "FINEHAIR_MFA_DIR_ATELIER",
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Executive Board",
+      "title": "Managing Director & Brand Principal",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "*",
+        "service.*",
+        "service.read",
+        "service.write",
+        "price.*",
+        "price.propose",
+        "price.approve",
+        "staff.*",
+        "staff.read",
+        "staff.write",
+        "staff.archive",
+        "appointment.*",
+        "appointment.read",
+        "appointment.write",
+        "appointment.manage",
+        "customer.*",
+        "customer.read",
+        "customer.write",
+        "finance.*",
+        "finance.read",
+        "payment.create",
+        "refund.propose",
+        "refund.approve",
+        "discount.propose",
+        "discount.approve",
+        "inventory.*",
+        "inventory.read",
+        "inventory.write",
+        "marketing.*",
+        "marketing.write",
+        "publishing.schedule",
+        "publishing.publish",
+        "homepage.*",
+        "homepage.write",
+        "homepage.publish",
+        "media.*",
+        "media.upload",
+        "media.approve",
+        "performance.*",
+        "performance.read",
+        "performance.write",
+        "audit.*",
+        "audit.read",
+        "iam.*",
+        "iam.manage_staff",
+        "iam.manage_roles",
+        "iam.view_security_logs",
+        "iam.revoke_sessions"
+      ],
+      "lastLoginAt": "2026-09-01T10:47:50.817Z",
+      "lastLoginIp": "127.0.0.1"
+    },
+    {
+      "id": "usr-cfo",
+      "name": "Amina K. (CFO / Executive)",
+      "email": "cfo@finehair.co.tz",
+      "phone": "+255 754 990 001",
+      "role": "Executive",
+      "status": "Active",
+      "passwordHash": "0f1c25f596899a9545210452df6d139671a92c59a8c43fd2798222dcce235a24eaaa1bb4deabc7b3115428ee9a40fb89cf79a49bea850a80e9ebb191b6cfb082",
+      "passwordSalt": "salt_cfo_2026",
+      "mfaEnabled": true,
+      "mfaSecret": "FINEHAIR_MFA_CFO_ATELIER",
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Executive Board",
+      "title": "Chief Financial Officer & Executive Partner",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "approve_prices",
+        "approve_refunds",
+        "approve_discounts",
+        "approve_reorders",
+        "financial_audit",
+        "manage_staff",
+        "publish_marketing",
+        "manage_services",
+        "manage_cms",
+        "approve_media"
+      ],
+      "pin": "9900"
+    },
+    {
+      "id": "usr-manager",
+      "name": "Zubeda M. (General Salon Manager)",
+      "email": "manager@finehair.co.tz",
+      "phone": "+255 784 554 400",
+      "role": "Manager",
+      "status": "Active",
+      "passwordHash": "2f530e1c36292b8afd20e8d12d12881950a39dd93fe9d05863b6a5611db3df85b716bfdf3bdd03f6de247c7ddf350555481e1d06e5162891eed9cfb86ba1e4c4",
+      "passwordSalt": "salt_manager_2026",
+      "mfaEnabled": true,
+      "mfaSecret": "FINEHAIR_MFA_MANAGER_ATELIER",
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Salon Operations",
+      "title": "General Salon Manager — Mikocheni & Masaki",
+      "avatar": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "manage_appointments",
+        "manage_inventory",
+        "view_customers",
+        "propose_prices",
+        "request_refunds",
+        "manage_daily_reports",
+        "edit_cms_draft"
+      ],
+      "pin": "5544"
+    },
+    {
+      "id": "usr-farida",
+      "name": "Farida M. (Lead Lace Specialist)",
+      "email": "farida@finehair.co.tz",
+      "phone": "+255 713 202 401",
+      "role": "Staff",
+      "status": "Active",
+      "passwordHash": "e87151ef0ff31d944b34b428be95bdaf460b0b80ce65457dbd009fcb059fc7a465126e17c6411768e00f5fd70ff1ec74608029d8d1caecc3633314b860920d6f",
+      "passwordSalt": "salt_farida_2026",
+      "mfaEnabled": false,
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Lace & Wig Atelier",
+      "staffId": "staff-1",
+      "title": "Senior Master Stylist & Lace Melt Specialist",
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "view_my_schedule",
+        "submit_daily_report",
+        "view_my_kpi",
+        "checkin_client"
+      ],
+      "pin": "2024"
+    },
+    {
+      "id": "usr-maria",
+      "name": "Maria K. (Senior Braiding Artist)",
+      "email": "maria@finehair.co.tz",
+      "phone": "+255 755 202 402",
+      "role": "Staff",
+      "status": "Active",
+      "passwordHash": "6216016574fae3439ec87e36338683f9bb3428d53eb1d3b48acd6f28e6e64dcd063b98ffaa323866bd450184711e547e0a16444621486638c5c65f35fd690be6",
+      "passwordSalt": "salt_maria_2026",
+      "mfaEnabled": false,
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Braids & Natural Care",
+      "staffId": "staff-2",
+      "title": "Senior Braiding & Natural Hair Care Artist",
+      "avatar": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "view_my_schedule",
+        "submit_daily_report",
+        "view_my_kpi",
+        "checkin_client"
+      ],
+      "pin": "2024"
+    },
+    {
+      "id": "usr-reception",
+      "name": "Fatma H. (Front Desk Host)",
+      "email": "reception@finehair.co.tz",
+      "phone": "+255 768 112 200",
+      "role": "Reception",
+      "status": "Active",
+      "passwordHash": "88028dc53416b02e695af06035da803d54eb2ca02e602465050f34facf2db93942cb1bf0c5d372944a7ce77a35d4d5dcc2ba04d8497d12031b078d4abef280b7",
+      "passwordSalt": "salt_reception_2026",
+      "mfaEnabled": false,
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Client Concierge",
+      "title": "Reception & Client Concierge Host",
+      "avatar": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "manage_appointments",
+        "take_deposit",
+        "view_customers",
+        "checkin_client"
+      ],
+      "pin": "1122"
+    },
+    {
+      "id": "usr-marketing",
+      "name": "Neema S. (Brand & Content Director)",
+      "email": "marketing@finehair.co.tz",
+      "phone": "+255 712 334 400",
+      "role": "Marketing",
+      "status": "Active",
+      "passwordHash": "432c96e32eec45a797f879c6e384cc5729b55f10968235226a2bb8e9cda3b8be59bd7333daad94b219ed599d7536143f12acaf398ff088266fa78c719c194de8",
+      "passwordSalt": "salt_marketing_2026",
+      "mfaEnabled": false,
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Brand & Growth",
+      "title": "Digital Content & Brand Growth Lead",
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "manage_marketing",
+        "schedule_posts",
+        "view_attribution",
+        "brand_compliance_review",
+        "edit_cms_draft",
+        "upload_media"
+      ],
+      "pin": "3344"
+    },
+    {
+      "id": "usr-customer",
+      "name": "Zahra M. (VIP Client)",
+      "email": "zahra@finehair.co.tz",
+      "phone": "+255 754 000 001",
+      "role": "Customer",
+      "status": "Active",
+      "passwordHash": "dcf00a62a882bb462ce471f376a1b1e09732dec3172de7709bc06cb5d1a280a1edc95082e47bcc0d778f44e07e2cd59cfa550172fe96568a6e40bc665b6d17eb",
+      "passwordSalt": "salt_zahra_2026",
+      "mfaEnabled": false,
+      "failedLoginAttempts": 0,
+      "lockedUntil": null,
+      "branchId": "branch-mikocheni",
+      "department": "Client VIP Atelier",
+      "title": "Fine Hair VIP Atelier Client",
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "updatedAt": "2026-08-28T00:00:00Z",
+      "permissions": [
+        "book_appointment",
+        "shop_products",
+        "view_my_profile"
+      ],
+      "pin": "0000"
+    },
+    {
+      "id": "usr-cust-1788259684280",
+      "name": "VIP Client ( 222)",
+      "email": "255754111222@finehair.co.tz",
+      "phone": "+255 754 111 222",
+      "role": "Customer",
+      "status": "Active",
+      "failedLoginAttempts": 0,
+      "mfaEnabled": false,
+      "branchId": "branch-mikocheni",
+      "department": "Client VIP Atelier",
+      "title": "Fine Hair VIP Atelier Client",
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400",
+      "permissions": [
+        "service.read",
+        "appointment.read",
+        "appointment.write",
+        "customer.read",
+        "customer.write",
+        "book_appointment",
+        "shop_products",
+        "view_my_profile"
+      ],
+      "createdAt": "2026-09-01T10:48:04.280Z",
+      "updatedAt": "2026-09-01T10:48:04.280Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess_ebf52367fe4a9328abdc98227d8dd0fe45d85a7ad772b2ac",
+      "userId": "usr-cust-1788259684280",
+      "userRole": "Customer",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/7.88.1",
+      "mfaVerified": false,
+      "revoked": false,
+      "expiresAt": "2026-09-02T10:48:04.280Z",
+      "lastActivityAt": "2026-09-01T10:48:04.280Z",
+      "createdAt": "2026-09-01T10:48:04.280Z"
+    },
+    {
+      "id": "sess_7087137881b618bc81ef704de6ada3e30cb5eace78f3ac5c",
+      "userId": "usr-director",
+      "userRole": "Executive",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "curl/7.88.1",
+      "mfaVerified": true,
+      "revoked": false,
+      "expiresAt": "2026-09-02T10:47:54.985Z",
+      "lastActivityAt": "2026-09-01T10:47:58.195Z",
+      "createdAt": "2026-09-01T10:47:54.985Z"
+    },
+    {
+      "id": "sess_476fbae6555da7c4428f5e40eac4be3e693ce4a57c1b4af4",
+      "userId": "usr-cfo",
+      "userRole": "Executive",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "API Client",
+      "mfaVerified": true,
+      "revoked": false,
+      "expiresAt": "2026-08-30T12:56:22.990Z",
+      "lastActivityAt": "2026-08-29T12:56:22.991Z",
+      "createdAt": "2026-08-29T12:56:22.990Z"
+    },
+    {
+      "id": "sess_cc8e01bc9c7b40355159fcce191c354d930d7741bf7e9ae2",
+      "userId": "usr-cfo",
+      "userRole": "Executive",
+      "ipAddress": "127.0.0.1",
+      "userAgent": "API Client",
+      "mfaVerified": true,
+      "revoked": false,
+      "expiresAt": "2026-08-30T12:56:22.845Z",
+      "lastActivityAt": "2026-08-29T12:56:22.847Z",
+      "createdAt": "2026-08-29T12:56:22.845Z"
+    }
+  ],
+  "otpChallenges": [
+    {
+      "id": "otp_1788259681013_a5db9ddbe023",
+      "identifier": "+255 754 111 222",
+      "otpHash": "4543d7331cc5c54b94ba1c4e1f6bda24442b983d6545f1993986c33162d89922",
+      "rawOtpForSmsDelivery": "844964",
+      "purpose": "customer_auth",
+      "attempts": 1,
+      "maxAttempts": 3,
+      "expiresAt": "2026-09-01T10:53:01.013Z",
+      "verified": true,
+      "resendCooldownUntil": "2026-09-01T10:49:01.013Z",
+      "createdAt": "2026-09-01T10:48:01.013Z"
+    },
+    {
+      "id": "mfa_1788259670819_42780bebbb82d2e1",
+      "identifier": "director@finehair.co.tz",
+      "otpHash": "9a6de9bb628d539247f289bf88a3b00a407c9a6b463a9ec84f915c417ffb1578",
+      "rawOtpForSmsDelivery": "978321",
+      "purpose": "mfa_stepup",
+      "attempts": 1,
+      "maxAttempts": 3,
+      "expiresAt": "2026-09-01T10:52:50.819Z",
+      "verified": true,
+      "createdAt": "2026-09-01T10:47:50.819Z"
+    }
+  ],
+  "securityEvents": [
+    {
+      "id": "sec_1788259684281_124",
+      "userId": "usr-cust-1788259684280",
+      "userEmail": "255754111222@finehair.co.tz",
+      "userRole": "Customer",
+      "eventType": "OTP_VERIFIED",
+      "severity": "info",
+      "ipAddress": "127.0.0.1",
+      "details": "Customer verified via OTP and logged in as VIP Client ( 222)",
+      "createdAt": "2026-09-01T10:48:04.281Z"
+    },
+    {
+      "id": "sec_1788259681013_402",
+      "eventType": "OTP_SENT",
+      "severity": "info",
+      "ipAddress": "127.0.0.1",
+      "details": "Verification code dispatched to +255 754 111 222 (Expires in 5 mins)",
+      "createdAt": "2026-09-01T10:48:01.013Z"
+    },
+    {
+      "id": "sec_1788259674986_819",
+      "userId": "usr-director",
+      "userEmail": "director@finehair.co.tz",
+      "userRole": "Executive",
+      "eventType": "MFA_VERIFIED",
+      "severity": "info",
+      "ipAddress": "127.0.0.1",
+      "details": "MFA challenge verified successfully for director@finehair.co.tz",
+      "createdAt": "2026-09-01T10:47:54.986Z"
+    },
+    {
+      "id": "sec_1788259670820_548",
+      "userId": "usr-director",
+      "userEmail": "director@finehair.co.tz",
+      "userRole": "Executive",
+      "eventType": "MFA_REQUIRED",
+      "severity": "info",
+      "ipAddress": "127.0.0.1",
+      "details": "MFA step-up required for privileged account director@finehair.co.tz",
+      "createdAt": "2026-09-01T10:47:50.820Z"
+    },
+    {
+      "id": "sec_1788259617821_895",
+      "userEmail": "director@finehair.co.tz",
+      "eventType": "LOGIN_FAILURE",
+      "severity": "warning",
+      "ipAddress": "127.0.0.1",
+      "details": "Failed authentication attempt for unknown account \"director@finehair.co.tz\"",
+      "createdAt": "2026-09-01T10:46:57.821Z"
+    },
+    {
+      "id": "sec_1788259555610_537",
+      "userEmail": "director@finehair.co.tz",
+      "eventType": "LOGIN_FAILURE",
+      "severity": "warning",
+      "ipAddress": "127.0.0.1",
+      "details": "Failed authentication attempt for unknown account \"director@finehair.co.tz\"",
+      "createdAt": "2026-09-01T10:45:55.610Z"
+    },
+    {
+      "id": "sec_1788008214187_95",
+      "userEmail": "director@finehair.co.tz",
+      "eventType": "LOGIN_FAILURE",
+      "severity": "warning",
+      "ipAddress": "127.0.0.1",
+      "details": "Failed authentication attempt for unknown account \"director@finehair.co.tz\"",
+      "createdAt": "2026-08-29T12:56:54.187Z"
+    }
+  ],
+  "invitations": [],
+  "branches": [
+    {
+      "id": "branch-mikocheni",
+      "name": "Mikocheni Flagship Boutique",
+      "city": "Dar es Salaam",
+      "address": "Mikocheni B, Ussagara Street, Villa 14",
+      "phone": "+255 754 001 122",
+      "status": "Active",
+      "stationCount": 8,
+      "openingHours": "Tue - Sun: 08:30 - 20:00"
+    },
+    {
+      "id": "branch-masaki",
+      "name": "Masaki Luxury Atelier",
+      "city": "Dar es Salaam",
+      "address": "Toure Drive, Slipway Luxury Enclave",
+      "phone": "+255 784 990 011",
+      "status": "Active",
+      "stationCount": 6,
+      "openingHours": "Tue - Sun: 09:00 - 20:30"
+    }
+  ],
+  "services": [
+    {
+      "id": "srv-1",
+      "name": "Fine Hair No Leave Out (Frontal Signature)",
+      "swahiliName": "Kufunga Frontal Bila Nywele Zako Kuonekana (No Leave Out)",
+      "category": "Installation",
+      "currentPrice": 280000,
+      "durationMinutes": 180,
+      "depositRequired": 80000,
+      "durationLabel": "3.0 hrs",
+      "status": "Active",
+      "description": "Fine Hair signature lace frontal installation with zero natural hair exposed. Complete skin-melt adhesive application, customized hairline, and silk press.",
+      "swahiliDescription": "Kufunga frontal bila nywele za asili kuonekana, kurekebisha msuko wa kichwa na finishing ya hariri.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 280000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-1",
+        "staff-2"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "Bone Straight HD Lace Melt on Melanin Skin"
+      }
+    },
+    {
+      "id": "srv-2",
+      "name": "Traditional Brazilian Knots Installation",
+      "swahiliName": "Kufunga Nywele kwa Brazilian Knots (Kifundo cha Asili)",
+      "category": "Installation",
+      "currentPrice": 220000,
+      "durationMinutes": 180,
+      "depositRequired": 60000,
+      "durationLabel": "3.0 hrs",
+      "status": "Active",
+      "description": "Strand-by-strand attachment with specialized elastic thread. Zero glue, zero heat, maximum movement and high versatility for active lifestyles.",
+      "swahiliDescription": "Ufungaji wa nyuzi salama bila gundi wala joto kali, unaodumu na kuruhusu hewa.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 220000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-3",
+        "staff-1"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "Natural African Textured Extensions Integration"
+      }
+    },
+    {
+      "id": "srv-3",
+      "name": "Expert Hair Coloring & Toning (Fine Hair Signature)",
+      "swahiliName": "Upakaji Rangi na Toning ya Kisasa kwa Nywele za Kibinadamu",
+      "category": "Colour",
+      "currentPrice": 180000,
+      "durationMinutes": 150,
+      "depositRequired": 50000,
+      "durationLabel": "2.5 hrs",
+      "status": "Active",
+      "description": "Custom balayage, honey blonde lifting, or jet-black gloss tone on virgin human hair with bond-builder treatment.",
+      "swahiliDescription": "Kubadili rangi ya wigi au nywele za asili kwa ulinzi wa unyevunyevu na mng’ao.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 180000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-2",
+        "staff-3"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "Honey Blonde & Chestnut Toned Curls on Black Model"
+      }
+    },
+    {
+      "id": "srv-4",
+      "name": "Signature Knotless Luxury Braids",
+      "swahiliName": "Misuko ya Kisasa ya Knotless Isiyouza Wala Kuvuta Ngozi",
+      "category": "Braids",
+      "currentPrice": 120000,
+      "durationMinutes": 180,
+      "depositRequired": 40000,
+      "durationLabel": "3.0 hrs",
+      "status": "Active",
+      "description": "Tension-free, feather-light knotless box braids with organic rosemary scalp oil nourishment. Gentle on edges.",
+      "swahiliDescription": "Misuko ya mikono safi isiyo na fundo mwanzo, haiumizi ngozi ya kichwa na hudumu wiki kadhaa.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 120000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-2",
+        "staff-1"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "4C Natural Hair Clean Knotless Braids"
+      }
+    },
+    {
+      "id": "srv-5",
+      "name": "Precision Sew-In Weaving (With Closure)",
+      "swahiliName": "Kushona Nywele kwa Sindano na Uzi (Pamoja na Closure)",
+      "category": "Installation",
+      "currentPrice": 200000,
+      "durationMinutes": 150,
+      "depositRequired": 60000,
+      "durationLabel": "2.5 hrs",
+      "status": "Active",
+      "description": "Protective foundation cornrows, net mesh reinforcement, and flat seamless bundle stitching with 5x5 closure.",
+      "swahiliDescription": "Ushonaji thabiti wa weft unaolinda nywele zako za asili na muonekano usio na vipele.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 200000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-1",
+        "staff-3"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "Protective Cornrows Base & Raw Weft Stitching"
+      }
+    },
+    {
+      "id": "srv-6",
+      "name": "Hair Spa & Scalp Detox Treatment",
+      "swahiliName": "Matibabu ya Kina ya Ngozi ya Kichwa na Kuondoa Michirizi",
+      "category": "Care",
+      "currentPrice": 95000,
+      "durationMinutes": 90,
+      "depositRequired": 30000,
+      "durationLabel": "1.5 hrs",
+      "status": "Active",
+      "description": "Deep micro-mist steaming, tea-tree exfoliation scrub, and cold-pressed marula protein infusion.",
+      "swahiliDescription": "Matunzo maalum ya kukuza nywele na kuondoa mba na uchafu ulioganda.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 95000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-1",
+        "staff-2",
+        "staff-3"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "Natural 4C Scalp Steam & Detangling"
+      }
+    },
+    {
+      "id": "srv-7",
+      "name": "Wig Revamp & Deep Conditioning Restyle",
+      "swahiliName": "Kufufua Wigi Lako (Kuosha, Kunyoosha & Kutibu)",
+      "category": "Maintenance",
+      "currentPrice": 85000,
+      "durationMinutes": 120,
+      "depositRequired": 30000,
+      "durationLabel": "2.0 hrs",
+      "status": "Active",
+      "description": "Detangling bath, silicone steam restoration, plucking refresh, and thermal titanium silk press.",
+      "swahiliDescription": "Kurudisha uhai na ulaini wa wigi lako lililochoka kama jipya.",
+      "priceHistory": [
+        {
+          "date": "2026-08-28",
+          "price": 85000,
+          "changedBy": "Executive CFO"
+        }
+      ],
+      "qualifiedStaffIds": [
+        "staff-1",
+        "staff-3"
+      ],
+      "imageUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=800",
+      "brandCompliance": {
+        "representationVerified": true,
+        "hairTexture": "Sleek Revamped Virgin Hair"
+      }
+    }
+  ],
+  "appointments": [
+    {
+      "id": "apt-101",
+      "customerName": "Zahra Mohammed",
+      "customerPhone": "+255 714 889 001",
+      "customerId": "cust-1",
+      "serviceId": "srv-1",
+      "serviceName": "Fine Hair No Leave Out (Frontal Signature)",
+      "staffId": "staff-1",
+      "staffName": "Farida M.",
+      "date": "2026-08-28",
+      "time": "09:00",
+      "durationMinutes": 180,
+      "status": "In service",
+      "paymentStatus": "Deposit paid",
+      "price": 280000,
+      "depositPaid": 80000,
+      "balanceDue": 200000,
+      "paymentMethod": "M-Pesa",
+      "hairNotes": "Bring custom 13x6 frontal tinted light-brown.",
+      "branchId": "branch-mikocheni",
+      "createdAt": "2026-08-26T10:00:00Z",
+      "updatedAt": "2026-08-28T09:05:00Z"
+    },
+    {
+      "id": "apt-102",
+      "customerName": "Amina Salum",
+      "customerPhone": "+255 754 332 119",
+      "customerId": "cust-2",
+      "serviceId": "srv-4",
+      "serviceName": "Signature Knotless Luxury Braids",
+      "staffId": "staff-2",
+      "staffName": "Maria K.",
+      "date": "2026-08-28",
+      "time": "11:00",
+      "durationMinutes": 180,
+      "status": "Confirmed",
+      "paymentStatus": "Deposit paid",
+      "price": 120000,
+      "depositPaid": 40000,
+      "balanceDue": 80000,
+      "paymentMethod": "Lipa Namba",
+      "hairNotes": "Mid-back length, warm chocolate #4 tone.",
+      "branchId": "branch-mikocheni",
+      "createdAt": "2026-08-27T14:30:00Z",
+      "updatedAt": "2026-08-27T14:30:00Z"
+    },
+    {
+      "id": "apt-103",
+      "customerName": "Doris Kimaro",
+      "customerPhone": "+255 765 009 112",
+      "serviceId": "srv-2",
+      "serviceName": "Traditional Brazilian Knots Installation",
+      "staffId": "staff-3",
+      "staffName": "Zainab J.",
+      "date": "2026-08-28",
+      "time": "14:00",
+      "durationMinutes": 180,
+      "status": "Confirmed",
+      "paymentStatus": "Deposit paid",
+      "price": 220000,
+      "depositPaid": 60000,
+      "balanceDue": 160000,
+      "paymentMethod": "M-Pesa",
+      "hairNotes": "Raw 26 inch natural wave bundles.",
+      "branchId": "branch-masaki",
+      "createdAt": "2026-08-27T16:00:00Z",
+      "updatedAt": "2026-08-27T16:00:00Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": "cust-1",
+      "name": "Zahra Mohammed",
+      "phone": "+255 714 889 001",
+      "email": "zahra.m@gmail.com",
+      "hairTexture": "4C Coily",
+      "preferredStylistId": "staff-1",
+      "preferredStylistName": "Farida M.",
+      "preferredServiceId": "srv-1",
+      "preferredServiceName": "Fine Hair No Leave Out (Frontal Signature)",
+      "totalSpend": 2450000,
+      "visitCount": 7,
+      "lastVisit": "2026-08-18",
+      "status": "VIP",
+      "source": "Instagram",
+      "allergiesOrNotes": "Sensitive scalp to alcohol-based lace glues; always use organic melting spray.",
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400"
+    },
+    {
+      "id": "cust-2",
+      "name": "Amina Salum",
+      "phone": "+255 754 332 119",
+      "email": "amina.salum@tzbank.co.tz",
+      "hairTexture": "4B Kinky-Coily",
+      "preferredStylistId": "staff-2",
+      "preferredStylistName": "Maria K.",
+      "preferredServiceId": "srv-4",
+      "preferredServiceName": "Signature Knotless Luxury Braids",
+      "totalSpend": 1120000,
+      "visitCount": 4,
+      "lastVisit": "2026-08-10",
+      "status": "Active",
+      "source": "Referral",
+      "allergiesOrNotes": "Prefers quiet sessions with herbal tea.",
+      "avatar": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=400"
+    },
+    {
+      "id": "cust-3",
+      "name": "Beatrice Mushi",
+      "phone": "+255 784 990 223",
+      "email": "beatrice.mushi@outlook.com",
+      "hairTexture": "4A Curly-Coily",
+      "preferredStylistId": "staff-3",
+      "preferredStylistName": "Zainab J.",
+      "preferredServiceId": "srv-2",
+      "preferredServiceName": "Traditional Brazilian Knots Installation",
+      "totalSpend": 840000,
+      "visitCount": 3,
+      "lastVisit": "2026-07-22",
+      "status": "Rebook due",
+      "source": "WhatsApp",
+      "allergiesOrNotes": "High density hair; requires extra thread bundle.",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400"
+    },
+    {
+      "id": "cust-1788259684279",
+      "name": "VIP Client ( 222)",
+      "phone": "+255 754 111 222",
+      "hairTexture": "4C Coily",
+      "totalSpend": 0,
+      "visitCount": 0,
+      "lastVisit": "2026-09-01",
+      "status": "Active",
+      "source": "Walk-in",
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400"
+    }
+  ],
+  "staff": [
+    {
+      "id": "staff-1",
+      "name": "Farida M.",
+      "roleTitle": "Senior Master Stylist & Lace Specialist",
+      "phone": "+255 754 112 233",
+      "email": "farida@finehair.co.tz",
+      "present": true,
+      "lateCount": 0,
+      "appointmentsCount": 4,
+      "completedCount": 3,
+      "clientScore": 4.9,
+      "kpiScore": 94,
+      "reportsSubmittedPct": 100,
+      "avatar": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400",
+      "specialties": [
+        "Frontal Lace Melt",
+        "No Leave Out",
+        "HD Closures",
+        "Wig Revamp"
+      ],
+      "punctualityScore": 98,
+      "commissionRate": 0.18,
+      "accumulatedCommission": 412000,
+      "branchId": "branch-mikocheni",
+      "notes": "Exceptional client retention. Flawless lace tint matching on melanin complexions."
+    },
+    {
+      "id": "staff-2",
+      "name": "Maria K.",
+      "roleTitle": "Senior Braiding & Natural Hair Artist",
+      "phone": "+255 765 223 344",
+      "email": "maria@finehair.co.tz",
+      "present": true,
+      "lateCount": 0,
+      "appointmentsCount": 3,
+      "completedCount": 2,
+      "clientScore": 4.8,
+      "kpiScore": 91,
+      "reportsSubmittedPct": 100,
+      "avatar": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=400",
+      "specialties": [
+        "Knotless Braids",
+        "Scalp Spa Detox",
+        "Colour & Balayage"
+      ],
+      "punctualityScore": 96,
+      "commissionRate": 0.18,
+      "accumulatedCommission": 345000,
+      "branchId": "branch-mikocheni",
+      "notes": "Master of neat parting and gentle scalp handling."
+    },
+    {
+      "id": "staff-3",
+      "name": "Zainab J.",
+      "roleTitle": "Extensions & Brazilian Knots Specialist",
+      "phone": "+255 784 334 455",
+      "email": "zainab@finehair.co.tz",
+      "present": true,
+      "lateCount": 1,
+      "appointmentsCount": 3,
+      "completedCount": 1,
+      "clientScore": 4.7,
+      "kpiScore": 88,
+      "reportsSubmittedPct": 90,
+      "avatar": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=400",
+      "specialties": [
+        "Brazilian Knots",
+        "Sew-in Weaving",
+        "Microlinks"
+      ],
+      "punctualityScore": 89,
+      "commissionRate": 0.18,
+      "accumulatedCommission": 280000,
+      "branchId": "branch-masaki",
+      "notes": "Fast strand-by-strand technique with tension discipline."
+    }
+  ],
+  "inventory": [
+    {
+      "id": "inv-1",
+      "name": "13x6 HD Invisible Melt Frontal",
+      "sku": "LACE-HD-13X6",
+      "category": "Frontals & Closures",
+      "stock": 4,
+      "threshold": 5,
+      "costPrice": 140000,
+      "retailPrice": 260000,
+      "unit": "pcs",
+      "status": "Low",
+      "supplier": "Cambodian Artisan Atelier",
+      "imageUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=600"
+    },
+    {
+      "id": "inv-2",
+      "name": "Raw Cambodian Natural Wave 24\"",
+      "sku": "BUN-RAW-24",
+      "category": "Hair Bundles",
+      "stock": 12,
+      "threshold": 6,
+      "costPrice": 210000,
+      "retailPrice": 380000,
+      "unit": "bundles",
+      "status": "Healthy",
+      "supplier": "Cambodian Hair Collective",
+      "imageUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=600"
+    },
+    {
+      "id": "inv-3",
+      "name": "Fine Hair Pro Lace Glue & Melt Band Kit",
+      "sku": "ACC-MELT-KIT",
+      "category": "Lace Glues & Solvents",
+      "stock": 18,
+      "threshold": 8,
+      "costPrice": 25000,
+      "retailPrice": 55000,
+      "unit": "kits",
+      "status": "Healthy",
+      "supplier": "Fine Hair Lab",
+      "imageUrl": "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=600"
+    },
+    {
+      "id": "inv-4",
+      "name": "Raw 4C Afro Coily 5x5 HD Lace Closure",
+      "sku": "CLS-4C-5X5",
+      "category": "Frontals & Closures",
+      "stock": 2,
+      "threshold": 4,
+      "costPrice": 190000,
+      "retailPrice": 340000,
+      "unit": "pcs",
+      "status": "Critical",
+      "supplier": "Cambodian Artisan Atelier",
+      "imageUrl": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=600"
+    }
+  ],
+  "approvals": [
+    {
+      "id": "appr-1",
+      "title": "Service Price Adjustment: Fine Hair No Leave Out",
+      "type": "price_change",
+      "requestedByUserId": "usr-manager",
+      "requestedByName": "Zubeda M. (General Salon Manager)",
+      "requestedByRole": "Manager",
+      "details": "Adjust base installation fee from TZS 280,000 to TZS 300,000 due to imported HD lace melt bond cost increases.",
+      "serviceId": "srv-1",
+      "currentValue": 280000,
+      "proposedValue": 300000,
+      "effectiveDate": "2026-09-01",
+      "reason": "Import duty and Swiss HD lace adhesive wholesale increased by 14% this month.",
+      "amount": 300000,
+      "date": "2026-08-28",
+      "status": "Pending"
+    },
+    {
+      "id": "appr-2",
+      "title": "Inventory Restock Order: 4C Afro Coily Closures",
+      "type": "stock_reorder",
+      "requestedByUserId": "usr-manager",
+      "requestedByName": "Zubeda M. (General Salon Manager)",
+      "requestedByRole": "Manager",
+      "details": "Urgent wholesale restock: 15 units of 5x5 4C Afro Coily Closures (Total invoice: TZS 2,850,000).",
+      "amount": 2850000,
+      "reason": "Stock is at critical level (2 units remaining) with 6 bridal reservations next week.",
+      "date": "2026-08-28",
+      "status": "Pending"
+    }
+  ],
+  "socialAccounts": [
+    {
+      "id": "acc-meta-ig",
+      "platform": "Instagram",
+      "handle": "@finehairtz",
+      "status": "Connected",
+      "connectedAccountName": "Fine Hair Tanzania Official",
+      "tokenExpiresAt": "2026-10-31",
+      "permissionsGranted": [
+        "instagram_basic",
+        "instagram_content_publish",
+        "instagram_manage_insights"
+      ],
+      "autoPublishEnabled": true,
+      "webhookStatus": "Active",
+      "lastSyncedAt": "2026-08-28T04:30:00Z"
+    },
+    {
+      "id": "acc-meta-fb",
+      "platform": "Facebook",
+      "handle": "Fine Hair Atelier Masaki",
+      "status": "Connected",
+      "connectedAccountName": "Fine Hair Tanzania Page",
+      "tokenExpiresAt": "2026-10-31",
+      "permissionsGranted": [
+        "pages_manage_posts",
+        "pages_read_engagement"
+      ],
+      "autoPublishEnabled": true,
+      "webhookStatus": "Active",
+      "lastSyncedAt": "2026-08-28T04:30:00Z"
+    },
+    {
+      "id": "acc-tiktok",
+      "platform": "TikTok",
+      "handle": "@finehair_tanzania",
+      "status": "Connected",
+      "connectedAccountName": "Fine Hair TZ Creator Studio",
+      "tokenExpiresAt": "2026-09-30",
+      "permissionsGranted": [
+        "video.upload",
+        "video.publish",
+        "user.info.basic"
+      ],
+      "autoPublishEnabled": true,
+      "webhookStatus": "Active",
+      "lastSyncedAt": "2026-08-28T03:45:00Z"
+    },
+    {
+      "id": "acc-youtube",
+      "platform": "YouTube",
+      "handle": "Fine Hair Atelier TZ",
+      "status": "Connected",
+      "connectedAccountName": "Fine Hair Atelier Channel",
+      "tokenExpiresAt": "2026-12-31",
+      "permissionsGranted": [
+        "youtube.upload",
+        "youtube.readonly"
+      ],
+      "autoPublishEnabled": true,
+      "webhookStatus": "Active",
+      "lastSyncedAt": "2026-08-28T02:00:00Z"
+    }
+  ],
+  "marketingPosts": [
+    {
+      "id": "mkt-1",
+      "title": "Fine Hair Fix #08: Invisible 4C Lace Melt with Zero Edge Tension",
+      "series": "Fine Hair Fix",
+      "platforms": [
+        "Instagram",
+        "TikTok"
+      ],
+      "publishDate": "2026-08-28",
+      "publishTime": "17:30",
+      "status": "Scheduled",
+      "mediaUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=800",
+      "author": "Neema S. (Marketing)",
+      "notes": "Demonstrating ear-tab contouring and breathable melting band application.",
+      "brandSafetyAudit": {
+        "representationVerified": true,
+        "hairTextureTag": "4C Natural Hair & HD Lace Melt",
+        "africanModelVerified": true,
+        "complianceStatus": "Verified Compliant: Authentic African Texture Representation"
+      },
+      "attribution": {
+        "campaignId": "camp-fix-08",
+        "reach": 48500,
+        "enquiries": 64,
+        "bookings": 19,
+        "attributedRevenueTZS": 4720000
+      },
+      "retryCount": 0
+    },
+    {
+      "id": "mkt-2",
+      "title": "Masaki Atelier Transformation: Raw Cambodian 28\" Silk Press",
+      "series": "Transformations",
+      "platforms": [
+        "Instagram",
+        "Facebook",
+        "TikTok"
+      ],
+      "publishDate": "2026-08-29",
+      "publishTime": "12:00",
+      "status": "Scheduled",
+      "mediaUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=800",
+      "author": "Neema S. (Marketing)",
+      "notes": "Client came in with dry heat damaged ends; transformed into glass finish.",
+      "brandSafetyAudit": {
+        "representationVerified": true,
+        "hairTextureTag": "Raw Cambodian Single Donor Silk Press",
+        "africanModelVerified": true,
+        "complianceStatus": "Verified Compliant: Authentic African Texture Representation"
+      },
+      "attribution": {
+        "campaignId": "camp-masaki-trans-29",
+        "reach": 32000,
+        "enquiries": 42,
+        "bookings": 14,
+        "attributedRevenueTZS": 3640000
+      },
+      "retryCount": 0
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "aud-1788003741801-290",
+      "timestamp": "2026-08-29T11:42:21.801Z",
+      "actorId": "usr-cfo",
+      "actorName": "Amina K. (CFO / Executive)",
+      "actorRole": "Executive",
+      "action": "HOMEPAGE_HERO_UPDATED",
+      "entityType": "cms",
+      "entityId": "hero-camp-1",
+      "details": "Updated Hero Campaign \"NATURALLY YOU\" -> Headline: \"All natural, All you\" (Status: Published)"
+    },
+    {
+      "id": "aud-1788003674269-83",
+      "timestamp": "2026-08-29T11:41:14.269Z",
+      "actorId": "usr-cfo",
+      "actorName": "Amina K. (CFO / Executive)",
+      "actorRole": "Executive",
+      "action": "HOMEPAGE_HERO_UPDATED",
+      "entityType": "cms",
+      "entityId": "hero-camp-1",
+      "details": "Updated Hero Campaign \"NATURALLY YOU\" -> Headline: \"All natural, All you\" (Status: Published)"
+    },
+    {
+      "id": "aud-1",
+      "timestamp": "2026-08-28T09:00:00Z",
+      "actorId": "usr-cfo",
+      "actorName": "Amina K. (CFO)",
+      "actorRole": "Executive",
+      "action": "PRICE_MASTER_AUDIT",
+      "entityType": "service",
+      "entityId": "srv-1",
+      "details": "Verified and locked master price for Fine Hair No Leave Out at TZS 280,000."
+    },
+    {
+      "id": "aud-2",
+      "timestamp": "2026-08-28T08:30:00Z",
+      "actorId": "usr-manager",
+      "actorName": "Zubeda M. (Manager)",
+      "actorRole": "Manager",
+      "action": "APPROVAL_PROPOSAL_SUBMITTED",
+      "entityType": "approval",
+      "entityId": "appr-1",
+      "details": "Proposed price increase for srv-1 to TZS 300,000. Forwarded to CFO queue."
+    }
+  ],
+  "mediaAssets": [
+    {
+      "id": "media-1",
+      "title": "4C Afro Coily HD Glueless Lace Melt",
+      "category": "Hero Banners",
+      "campaign": "August Crown Campaign 2026",
+      "source": "Fine Hair Studio Shoot",
+      "usageRightsVerified": true,
+      "representationVerified": true,
+      "hairTexture": "4C Coily Textured Lace Melt",
+      "status": "Approved",
+      "uploadedBy": "Neema S. (Marketing)",
+      "approvedBy": "Amina K. (CFO)",
+      "url": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=1200",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&q=80&w=400",
+      "date": "2026-08-20"
+    },
+    {
+      "id": "media-2",
+      "title": "Raw Cambodian Silk Press on Melanin Model",
+      "category": "Transformations",
+      "campaign": "Masaki Luxury Atelier Launch",
+      "source": "Editorial Campaign",
+      "usageRightsVerified": true,
+      "representationVerified": true,
+      "hairTexture": "Raw Cambodian Single Donor Silk Press",
+      "status": "Approved",
+      "uploadedBy": "Neema S. (Marketing)",
+      "approvedBy": "Amina K. (CFO)",
+      "url": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=1200",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?auto=format&fit=crop&q=80&w=400",
+      "date": "2026-08-22"
+    },
+    {
+      "id": "media-3",
+      "title": "Precision Knotless Luxury Braids with Rosemary Oil",
+      "category": "Service Catalogue",
+      "campaign": "Scalp & Protective Styling Series",
+      "source": "Fine Hair Studio Shoot",
+      "usageRightsVerified": true,
+      "representationVerified": true,
+      "hairTexture": "4C Natural Clean Knotless Braids",
+      "status": "Approved",
+      "uploadedBy": "Maria K. (Stylist)",
+      "approvedBy": "Amina K. (CFO)",
+      "url": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=1200",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&q=80&w=400",
+      "date": "2026-08-23"
+    },
+    {
+      "id": "media-4",
+      "title": "Traditional Brazilian Knots High-Flexibility Weave",
+      "category": "Transformations",
+      "campaign": "Natural Extensions Series",
+      "source": "Customer Transformation",
+      "usageRightsVerified": true,
+      "representationVerified": true,
+      "hairTexture": "Natural African Textured Extensions Integration",
+      "status": "Approved",
+      "uploadedBy": "Zainab J. (Stylist)",
+      "approvedBy": "Amina K. (CFO)",
+      "url": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=1200",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=400",
+      "date": "2026-08-25"
+    },
+    {
+      "id": "media-5",
+      "title": "Editorial September Campaign: Your Hair. Your Standard.",
+      "category": "Hero Banners",
+      "campaign": "September Standard Campaign 2026",
+      "source": "Editorial Campaign",
+      "usageRightsVerified": true,
+      "representationVerified": true,
+      "hairTexture": "Bespoke Afro High-Fashion Crown",
+      "status": "Approved",
+      "uploadedBy": "Neema S. (Marketing)",
+      "approvedBy": "Amina K. (CFO)",
+      "url": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=1200",
+      "thumbnailUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400",
+      "date": "2026-08-27"
+    }
+  ],
+  "heroCampaigns": [
+    {
+      "id": "hero-camp-1",
+      "campaignName": "NATURALLY YOU",
+      "status": "Published",
+      "eyebrow": "New Collection 2026",
+      "headline": "All natural, All you",
+      "subheadline": "Discover authentic natural African hair textures (4C / 4B / 3C / Raw Straight), undetectable Swiss HD lace melting, and bespoke luxury salon artistry at Mikocheni B and Masaki Atelier.",
+      "heroImageId": "media-4",
+      "heroImageUrl": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=1200",
+      "mobileHeroImageUrl": "https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&q=80&w=1200",
+      "primaryCtaLabel": "Explore Hair Collection",
+      "primaryCtaAction": "shop",
+      "secondaryCtaLabel": "Book Salon Appointment",
+      "secondaryCtaAction": "book",
+      "startDate": "2026-08-01",
+      "endDate": "2026-08-31",
+      "targetAudience": "all",
+      "createdAt": "2026-08-01T08:00:00Z",
+      "approvedBy": "Amina K. (CFO)"
+    },
+    {
+      "id": "hero-camp-2",
+      "campaignName": "September Standard Campaign (Scheduled)",
+      "status": "Scheduled",
+      "eyebrow": "Spring Atelier Showcase 2026",
+      "headline": "Your Hair. Your Standard.",
+      "subheadline": "Precision tension-free braiding, botanical micro-mist scalp therapy, and raw donor hair crafted exclusively for discerning African women.",
+      "heroImageId": "media-5",
+      "heroImageUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=1200",
+      "mobileHeroImageUrl": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=600",
+      "primaryCtaLabel": "Reserve Atelier Experience",
+      "primaryCtaAction": "book",
+      "secondaryCtaLabel": "View Journal Editorial",
+      "secondaryCtaAction": "journal",
+      "startDate": "2026-09-01",
+      "endDate": "2026-09-30",
+      "targetAudience": "all",
+      "createdAt": "2026-08-25T11:00:00Z",
+      "approvedBy": "Amina K. (CFO)"
+    }
+  ],
+  "homepageSections": [
+    {
+      "id": "sec-hero",
+      "sectionKey": "hero",
+      "title": "Hero Editorial Showcase",
+      "subtitle": "Primary headline and dynamic audience banner",
+      "enabled": true,
+      "sortOrder": 1,
+      "targetAudience": "all"
+    },
+    {
+      "id": "sec-upcoming",
+      "sectionKey": "upcoming_appointment",
+      "title": "Upcoming Appointment HUD",
+      "subtitle": "Active booking countdown, stylist, and aftercare prep",
+      "enabled": true,
+      "sortOrder": 2,
+      "targetAudience": "has_upcoming_appointment"
+    },
+    {
+      "id": "sec-ai",
+      "sectionKey": "ai_recommendation",
+      "title": "Fine Hair AI Concierge Advisor",
+      "subtitle": "Tailored hair goal matching & texture assessment",
+      "enabled": true,
+      "sortOrder": 3,
+      "targetAudience": "all"
+    },
+    {
+      "id": "sec-services",
+      "sectionKey": "featured_services",
+      "title": "Signature Salon Artistry",
+      "subtitle": "Curated salon services with real-time deposit booking",
+      "enabled": true,
+      "sortOrder": 4,
+      "targetAudience": "all"
+    },
+    {
+      "id": "sec-collection",
+      "sectionKey": "featured_collection",
+      "title": "Luxury Virgin Hair Collection",
+      "subtitle": "Hand-tied raw donor bundles & glueless HD wigs",
+      "enabled": true,
+      "sortOrder": 5,
+      "targetAudience": "all"
+    },
+    {
+      "id": "sec-transformation",
+      "sectionKey": "transformation",
+      "title": "Fine Hair Transformations & Before/After",
+      "subtitle": "Verified client journeys and edge preservation",
+      "enabled": true,
+      "sortOrder": 6,
+      "targetAudience": "all"
+    },
+    {
+      "id": "sec-journal",
+      "sectionKey": "journal",
+      "title": "The Fine Hair Journal & Aftercare Guide",
+      "subtitle": "Expert maintenance advice for tropical humidity",
+      "enabled": true,
+      "sortOrder": 7,
+      "targetAudience": "all"
+    },
+    {
+      "id": "sec-testimonials",
+      "sectionKey": "testimonials",
+      "title": "Client Stories & Verified Reviews",
+      "subtitle": "Feedback from Dar es Salaam VIP clientele",
+      "enabled": true,
+      "sortOrder": 8,
+      "targetAudience": "all"
+    }
+  ],
+  "exceptions": [
+    {
+      "id": "exc-1",
+      "title": "Critical Inventory Depletion: 4C Afro Coily Closures",
+      "category": "inventory_low",
+      "severity": "Critical",
+      "status": "Open",
+      "assignedTo": "Zubeda M. (Manager)",
+      "details": "Stock remaining: 2 units (below threshold of 4). Purchase order submitted for CFO approval.",
+      "createdAt": "2026-08-28T07:15:00Z",
+      "updatedAt": "2026-08-28T07:15:00Z"
+    },
+    {
+      "id": "exc-2",
+      "title": "Lateness Incident: Stylist Zainab J.",
+      "category": "staff_lateness",
+      "severity": "Warning",
+      "status": "In Progress",
+      "assignedTo": "Zubeda M. (Manager)",
+      "details": "Checked in 22 minutes late at Masaki Atelier due to Bagamoyo road traffic.",
+      "createdAt": "2026-08-28T09:22:00Z",
+      "updatedAt": "2026-08-28T09:30:00Z"
+    }
+  ],
+  "staffDailyReports": [
+    {
+      "id": "rep-1",
+      "staffId": "staff-1",
+      "staffName": "Farida M.",
+      "date": "2026-08-27",
+      "branchId": "branch-mikocheni",
+      "appointmentsAssigned": 4,
+      "completedCount": 4,
+      "noShowCount": 0,
+      "cancelledCount": 0,
+      "totalServiceMinutes": 680,
+      "complimentsCount": 3,
+      "complaintsCount": 0,
+      "additionalServicesCount": 1,
+      "revenueHandled": 980000,
+      "wentWell": "All frontals melted seamlessly. Clients praised the zero-tension glue band.",
+      "challenges": "Room 2 AC was low on cooling between 13:00 and 15:00.",
+      "managementNotes": "Maintenance called for Room 2 AC unit.",
+      "voiceNoteTranscript": "Leo wateja wote wanne walifurahi sana frontal zao. Hamna maumivu yoyote. Changamoto ilikuwa kiyoyozi kidogo cha room 2 kilipungua baridi mchana.",
+      "submittedAt": "2026-08-27T19:45:00Z",
+      "status": "Reviewed"
+    }
+  ],
+  "staffEvaluations": [
+    {
+      "id": "eval-1",
+      "staffId": "staff-1",
+      "staffName": "Farida M.",
+      "month": "2026-08",
+      "attendancePunctualityScore": 5,
+      "qualityOfWorkScore": 5,
+      "clientExperienceScore": 5,
+      "professionalConductScore": 5,
+      "teamworkAccountabilityScore": 4,
+      "standardsScore": 5,
+      "overallKpiScore": 4.8,
+      "appointmentsCompleted": 78,
+      "clientSatisfactionPct": 98,
+      "strengths": [
+        "Flawless lace melt finish",
+        "Extreme client loyalty",
+        "Punctual report submissions"
+      ],
+      "areasForImprovement": [
+        "Mentoring junior braiders during morning downtime"
+      ],
+      "trainingNeeds": "Advanced Swiss lace color formulation workshop",
+      "managerComment": "Outstanding master stylist performance. Anchor for the Mikocheni branch.",
+      "status": "Finalized"
+    }
+  ]
+}
